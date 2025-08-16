@@ -466,17 +466,26 @@ class MermaidPlaywrightValidator:
         
         try:
             # HTMLを一時ファイルに保存
-            with tempfile.NamedTemporaryFile(
-                mode='w',
-                suffix='.html',
-                delete=False,
-                encoding='utf-8'
-            ) as tmp:
-                tmp.write(html_content)
-                tmp_path = tmp.name
-            
-            # ページを開く
-            await page.goto(f'file:///{tmp_path}', wait_until='networkidle')
+            tmp_file = None
+            tmp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode='w',
+                    suffix='.html',
+                    delete=False,
+                    encoding='utf-8'
+                ) as tmp:
+                    tmp.write(html_content)
+                    tmp_path = tmp.name
+                    tmp_file = tmp
+                
+                # ページを開く
+                await page.goto(f'file:///{tmp_path}', wait_until='networkidle')
+            except Exception as e:
+                # エラーが発生した場合も一時ファイルを削除
+                if tmp_path and Path(tmp_path).exists():
+                    Path(tmp_path).unlink(missing_ok=True)
+                raise e
             
             # レンダリング完了を待つ
             await page.wait_for_function(

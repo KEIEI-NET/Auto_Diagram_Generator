@@ -23,6 +23,7 @@
 - 🔧 [トラブルシューティング](docs/TROUBLESHOOTING.md)
 - 🔒 [セキュリティガイド](docs/SECURITY.md)
 - 👩‍💻 [開発者ガイド](docs/DEVELOPER_GUIDE.md)
+- 💻 [Windows PowerShell ガイド](README_Windows.md)
 
 ## 🚀 クイックスタート
 

@@ -38,9 +38,18 @@ def validate_path(path: Union[str, Path], base_dir: Optional[Path] = None) -> Pa
     except (OSError, RuntimeError) as e:
         raise PathSecurityError(f"パスの解決に失敗: {e}")
     
-    # パストラバーサル攻撃のチェック
-    if ".." in str(path):
+    # パストラバーサル攻撃のチェック（より厳密に）
+    # 正規化されたパスのパーツに".."が含まれていないことを確認
+    path_parts = resolved_path.parts
+    if any(part == ".." or part.startswith("..") for part in path_parts):
         raise PathSecurityError("パストラバーサル攻撃の可能性があります")
+    
+    # 元のパス文字列にも危険なパターンがないか確認
+    dangerous_patterns = ['../', '..\\', '%2e%2e', '..%2f', '..%5c']
+    path_str_lower = str(path).lower()
+    for pattern in dangerous_patterns:
+        if pattern in path_str_lower:
+            raise PathSecurityError(f"危険なパターンが検出されました: {pattern}")
     
     # NULLバイトインジェクションのチェック
     if "\x00" in str(path):

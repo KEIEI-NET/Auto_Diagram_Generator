@@ -229,10 +229,18 @@ class MermaidViewerTest:
             html_file = mermaid_file.with_suffix('.html')
             
             from datetime import datetime
+            import html
+            
+            # XSS対策：HTMLエスケープを適用
+            safe_filename = html.escape(mermaid_file.name)
+            safe_timestamp = html.escape(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            # JavaScriptコンテキスト用のエスケープ
+            safe_content = content.replace('\\', '\\\\').replace('`', '\\`').replace('</', '<\\/')
+            
             html_content = html_template.format(
-                filename=mermaid_file.name,
-                timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                content=content.replace('\\', '\\\\').replace('`', '\\`')
+                filename=safe_filename,
+                timestamp=safe_timestamp,
+                content=safe_content
             )
             
             with open(html_file, 'w', encoding='utf-8') as f:
@@ -248,25 +256,37 @@ class MermaidViewerTest:
     def _test_mermaid_cli(self, mermaid_file: Path, result: Dict[str, Any]) -> bool:
         """Mermaid CLIでのテスト（mmdc）"""
         try:
-            # mmdcコマンドの存在確認
+            import shlex
+            from adg.utils.security import validate_path
+            
+            # パスを検証
+            try:
+                safe_path = validate_path(mermaid_file)
+            except Exception as e:
+                result['errors'].append(f"Invalid file path: {e}")
+                return False
+            
+            # mmdcコマンドの存在確認（シェル経由ではなく直接実行）
             mmdc_check = subprocess.run(
                 ['npx', 'mmdc', '--version'],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
+                shell=False  # シェル経由を明示的に無効化
             )
             
             if mmdc_check.returncode != 0:
                 result['errors'].append("Mermaid CLI (mmdc) not found")
                 return False
             
-            # SVG生成テスト
-            svg_file = mermaid_file.with_suffix('.svg')
+            # SVG生成テスト（安全なパス使用）
+            svg_file = safe_path.with_suffix('.svg')
             generate_result = subprocess.run(
-                ['npx', 'mmdc', '-i', str(mermaid_file), '-o', str(svg_file)],
+                ['npx', 'mmdc', '-i', str(safe_path), '-o', str(svg_file)],
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
+                shell=False  # シェル経由を明示的に無効化
             )
             
             if generate_result.returncode == 0 and svg_file.exists():

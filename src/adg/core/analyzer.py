@@ -228,6 +228,7 @@ class ProjectAnalyzer:
                 "total_files": 0,
                 "total_classes": 0,
                 "total_functions": 0,
+                "errors": []  # エラー収集用
             }
         }
         
@@ -251,8 +252,25 @@ class ProjectAnalyzer:
                             results["summary"]["total_functions"] += len(functions)
                     else:
                         logger.warning(f"Empty analysis result for {file_path}")
+            except FileNotFoundError as e:
+                logger.warning(f"File not found: {file_path}: {e}")
+                results["summary"]["errors"].append(f"File not found: {file_path}")
+                continue
+            except PermissionError as e:
+                logger.warning(f"Permission denied: {file_path}: {e}")
+                results["summary"]["errors"].append(f"Permission denied: {file_path}")
+                continue
+            except UnicodeDecodeError as e:
+                logger.warning(f"Encoding error in file {file_path}: {e}")
+                results["summary"]["errors"].append(f"Encoding error: {file_path}")
+                continue
+            except SyntaxError as e:
+                logger.warning(f"Syntax error in file {file_path}: {e}")
+                results["summary"]["errors"].append(f"Syntax error: {file_path}")
+                continue
             except Exception as e:
-                logger.error(f"Failed to analyze file {file_path}: {e}")
+                logger.error(f"Unexpected error analyzing {file_path}: {type(e).__name__}: {e}")
+                results["summary"]["errors"].append(f"Analysis failed: {file_path}: {type(e).__name__}")
                 continue
         
         return results
