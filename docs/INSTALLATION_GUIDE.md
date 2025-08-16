@@ -1,7 +1,7 @@
 # Auto Diagram Generator (ADG) インストールガイド
 
-*バージョン: v1.0.0*
-*最終更新: 2025年01月16日 16:40 JST*
+*バージョン: v2.1.0*
+*最終更新: 2025年08月16日 14:45 JST*
 
 ## 目次
 
@@ -40,41 +40,68 @@ git --version  # 2.25以上を推奨
 
 ### オプショナルソフトウェア
 
-- **Graphviz**: グラフ描画用（一部の図形式で必要）
-- **Node.js**: Mermaid CLI使用時に必要
-- **Java**: PlantUML使用時に必要
+- **uv**: 高速パッケージマネージャー（推奨）
+- **Playwright**: ブラウザベースのMermaid検証用
+- **Node.js**: Playwright実行時に必要（14.0以上）
+- **Chromium**: Playwright検証用ブラウザ
 
 ## クイックインストール
 
-### 方法1: pipを使用（推奨）
+### 方法1: uvを使用（推奨・高速）
 
 ```bash
-# PyPIからインストール（将来実装予定）
-pip install auto-diagram-generator
+# uvのインストール
+# Windows PowerShell
+irm https://astral.sh/uv/install.ps1 | iex
 
-# または、GitHubから直接インストール
-pip install git+https://github.com/KEIEI-NET/Auto_Diagram_Generator.git
+# Mac/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# リポジトリをクローン
+git clone https://github.com/KEIEI-NET/Auto_Diagram_Generator.git
+cd Auto_Diagram_Generator
+
+# 依存関係のインストール
+uv pip install -e .
+
+# Playwright（オプション）
+uv pip install playwright
+playwright install chromium
 ```
 
-### 方法2: ソースからインストール
+### 方法2: 従来のpipを使用
 
 ```bash
 # リポジトリをクローン
 git clone https://github.com/KEIEI-NET/Auto_Diagram_Generator.git
 cd Auto_Diagram_Generator
 
+# 仮想環境を作成
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
 # インストール
+pip install -r requirements.txt
 pip install -e .
+
+# Playwright（オプション）
+pip install playwright
+playwright install chromium
 ```
 
 ### インストール確認
 
 ```bash
-# コマンドが利用可能か確認
-adg --version
+# モジュールとして実行
+python -m adg.cli.command --help
 
-# ヘルプを表示
-adg --help
+# テストスクリプトの実行
+python test_adg.py
+
+# 各コンポーネントの確認
+python -c "from adg.core.analyzer import ProjectAnalyzer; print('✓ Analyzer OK')"
+python -c "from adg.generators.mermaid_refactored import MermaidGeneratorRefactored; print('✓ Mermaid OK')"
+python -c "from adg.generators.drawio_from_mermaid import DrawIOGenerator; print('✓ DrawIO OK')"
 ```
 
 ## 詳細インストール手順
@@ -108,7 +135,10 @@ cd Auto_Diagram_Generator
 python -m venv venv
 
 # 仮想環境を有効化
-.\venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
+
+# 実行ポリシーエラーが出る場合
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 # pipをアップグレード
 python -m pip install --upgrade pip
@@ -124,17 +154,32 @@ pip install -r requirements.txt
 pip install -e ".[dev]"
 ```
 
-#### 4. Graphvizのインストール（オプション）
+#### 4. Playwrightのインストール（オプション）
 
 ```powershell
-# Chocolateyを使用
-choco install graphviz
+# Playwrightパッケージのインストール
+pip install playwright
 
-# または、公式サイトからダウンロード
-# https://graphviz.org/download/
+# ブラウザのインストール
+playwright install chromium
 
-# 環境変数PATHにGraphvizのbinディレクトリを追加
-setx PATH "%PATH%;C:\Program Files\Graphviz\bin"
+# すべてのブラウザをインストールする場合
+playwright install
+
+# 依存関係付きでインストール（必要に応じて）
+playwright install --with-deps
+```
+
+#### 5. 環境変数の設定
+
+```powershell
+# 開発モードの有効化
+$env:ADG_DEV_MODE = "true"
+$env:ADG_LOG_LEVEL = "DEBUG"
+$env:PYTHONPATH = "$env:PYTHONPATH;$(pwd)\src"
+
+# 永続的に設定する場合
+[System.Environment]::SetEnvironmentVariable("ADG_DEV_MODE", "true", "User")
 ```
 
 ### macOS環境
@@ -190,14 +235,15 @@ pip install -e ".[dev]"
 #### 5. 追加ツールのインストール（オプション）
 
 ```bash
-# Graphvizのインストール
-brew install graphviz
+# uvのインストール（高速パッケージマネージャー）
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Node.js（Mermaid CLI用）
+# Playwrightのインストール
+pip install playwright
+playwright install chromium
+
+# Node.js（Playwright用）
 brew install node
-
-# Mermaid CLIのインストール
-npm install -g @mermaid-js/mermaid-cli
 ```
 
 ### Linux (Ubuntu/Debian)環境
@@ -257,15 +303,16 @@ pip install -e ".[dev]"
 #### 5. 追加ツールのインストール（オプション）
 
 ```bash
-# Graphvizのインストール
-sudo apt install graphviz
+# uvのインストール（高速パッケージマネージャー）
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Node.js（Mermaid CLI用）
+# Playwrightのインストール
+pip install playwright
+playwright install chromium --with-deps
+
+# Node.js（Playwright用）
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt install nodejs
-
-# Mermaid CLIのインストール
-sudo npm install -g @mermaid-js/mermaid-cli
 ```
 
 ## 開発環境セットアップ
@@ -334,12 +381,21 @@ WORKDIR /app
 # システムパッケージのインストール
 RUN apt-get update && apt-get install -y \
     git \
-    graphviz \
+    curl \
+    wget \
     && rm -rf /var/lib/apt/lists/*
+
+# uvのインストール
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.cargo/bin:$PATH"
 
 # 依存関係のコピーとインストール
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Playwrightのインストール
+RUN pip install playwright && \
+    playwright install chromium --with-deps
 
 # アプリケーションのコピー
 COPY . .
@@ -348,7 +404,7 @@ COPY . .
 RUN pip install -e .
 
 # エントリーポイント
-ENTRYPOINT ["adg"]
+CMD ["python", "-m", "adg.cli.command"]
 ```
 
 ### Docker Composeの設定
@@ -387,18 +443,16 @@ docker-compose run adg analyze
 
 ### 一般的な問題と解決策
 
-#### 1. "adg: command not found"
+#### 1. Windows PowerShell実行ポリシーエラー
 
-```bash
-# PATHに追加されているか確認
-echo $PATH
+```powershell
+# エラー: "cannot be loaded because running scripts is disabled on this system"
 
-# 再インストール
-pip uninstall auto-diagram-generator
-pip install -e .
+# 解決方法
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 
-# シェルの再起動または
-source ~/.bashrc  # Linux/macOS
+# 再度仮想環境をアクティベート
+.\venv\Scripts\Activate.ps1
 ```
 
 #### 2. ImportError: No module named 'adg'
@@ -436,17 +490,27 @@ source venv/bin/activate  # Linux/macOS
 pip install -r requirements.txt
 ```
 
-#### 5. Graphvizが見つからない
+#### 5. Playwrightエラー
 
 ```bash
-# インストール確認
-dot -V
+# "Playwright Host validation failed"エラーの場合
 
-# パスの追加（Windows）
-setx PATH "%PATH%;C:\Program Files\Graphviz\bin"
+# ブラウザを再インストール
+playwright uninstall
+playwright install chromium --with-deps
 
-# パスの追加（Linux/macOS）
-export PATH="/usr/local/bin:$PATH"
+# 権限エラーの場合（Linux）
+sudo playwright install-deps
+```
+
+#### 6. 文字エンコーディングエラー（Windows）
+
+```powershell
+# "UnicodeDecodeError: 'cp932' codec can't decode"エラーの場合
+
+# 環境変数を設定
+$env:PYTHONIOENCODING = "utf-8"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 ```
 
 ### ログの確認
@@ -522,8 +586,10 @@ rmdir /s %LOCALAPPDATA%\adg
 
 ---
 
-*最終更新: 2025年01月16日 16:40 JST*
-*バージョン: v1.0.0*
+*最終更新: 2025年08月16日 14:45 JST*
+*バージョン: v2.1.0*
 
 **更新履歴:**
+- v2.1.0 (2025年08月16日): uv対応、Playwright検証、DrawIO生成機能を追加
+- v2.0.0 (2025年08月14日): 本番実装完了、セキュリティ強化
 - v1.0.0 (2025年01月16日): 初版作成、包括的なインストール手順を文書化

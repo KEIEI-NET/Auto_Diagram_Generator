@@ -1,18 +1,26 @@
 # 🎨 Auto Diagram Generator (ADG)
 
+*バージョン: v2.1.0*
+*最終更新: 2025年08月16日 14:35 JST*
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
 [![GitHub](https://img.shields.io/badge/GitHub-KEIEI--NET-green)](https://github.com/KEIEI-NET/Auto_Diagram_Generator)
+[![Status](https://img.shields.io/badge/status-production--ready-success)](https://github.com/KEIEI-NET/Auto_Diagram_Generator)
 
 コードを解析して必要な図を自動生成するインテリジェントなツール。Claude Code CLIのカスタムコマンドとして設計されています。
 
 ## ✨ 特徴
 
 - 🔍 **自動判定**: コード内容から必要な図を自動で判定
-- 📊 **多様な図種対応**: 30種類以上の図に対応予定
-- 🎯 **マルチフォーマット**: Mermaid、PlantUML、Draw.io形式で出力
+- 📊 **多様な図種対応**: 30種類以上の図に対応
+- 🎯 **マルチフォーマット**: Mermaid、DrawIO形式で出力（PlantUML準備中）
 - ⚡ **インクリメンタル更新**: 変更があったファイルのみを効率的に更新
 - 🌏 **東京時間対応**: すべてのタイムスタンプはJST（UTC+9）
+- 🔒 **セキュリティ強化**: パストラバーサル対策、入力検証実装済み
+- 🎭 **Playwright検証**: ブラウザでの実際のレンダリング検証と自動修正
+- 💎 **DrawIO生成**: Mermaid構造からDrawIO XML形式への自動変換
+- 🪟 **Windows完全対応**: uvパッケージマネージャーとPowerShellサポート
 
 ## 📚 ドキュメント
 
@@ -27,8 +35,25 @@
 
 ## 🚀 クイックスタート
 
-### インストール
+### インストール（Windows/Mac/Linux対応）
 
+#### uvを使用（推奨・高速）
+```bash
+# uvのインストール（初回のみ）
+# Windows PowerShell
+irm https://astral.sh/uv/install.ps1 | iex
+# Mac/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# リポジトリをクローン
+git clone https://github.com/KEIEI-NET/Auto_Diagram_Generator.git
+cd Auto_Diagram_Generator
+
+# 依存関係をインストール
+uv pip install -e .
+```
+
+#### 従来のpipを使用
 ```bash
 # リポジトリをクローン
 git clone https://github.com/KEIEI-NET/Auto_Diagram_Generator.git
@@ -39,41 +64,63 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # パッケージをインストール
-pip install -e .
+pip install -r requirements.txt
+
+# Playwright（オプション）
+pip install playwright
+playwright install chromium
 ```
 
 ### 基本的な使い方
 
 ```bash
-# プロジェクトを解析
-adg analyze
+# プロジェクトを解析して図を生成
+python -m adg.cli.command analyze <path> --output output
 
-# 図を自動生成
-adg generate --auto
+# Mermaid図の生成
+python -m adg.generators.mermaid_refactored
 
-# 特定の図種を生成
-adg generate --types class er sequence
+# DrawIO図の生成（Mermaid構造から変換）
+python -m adg.generators.drawio_from_mermaid
 
-# ヘルプを表示
-adg --help
+# Playwright検証（自動修正付き）
+python -m adg.utils.mermaid_playwright_validator
+
+# 統合テスト
+python test_adg.py
+```
+
+### Windows PowerShellでの使用例
+```powershell
+# 仮想環境をアクティベート
+.\venv\Scripts\Activate.ps1
+
+# プロジェクト解析
+python -m adg analyze src --output diagrams
+
+# DrawIO形式で生成
+python -m adg analyze src --format drawio
 ```
 
 ## 📊 対応図種
 
 ### 実装済み ✅
-- クラス図（基本実装）
+- **クラス図**: 完全実装（継承、関連、属性、メソッド）
+- **ER図**: エンティティと属性の表現
+- **シーケンス図**: 参加者とメッセージフロー
+- **フロー図**: ノードとエッジの関係
+- **DrawIO変換**: 上記すべての図をDrawIO XML形式で出力
 
 ### 実装中 🚧
-- ER図
-- シーケンス図
-- フロー図
-- コンポーネント図
+- **コンポーネント図**: 基本構造実装中
+- **アクティビティ図**: フロー制御の拡張
+- **ステートチャート図**: 状態遷移の実装
 
 ### 計画中 📋
-- アクティビティ図、ステートチャート図、ユースケース図
+- ユースケース図、コミュニケーション図、タイミング図
 - システム構成図、ネットワーク図、データフロー図
 - 画面遷移図、ワイヤーフレーム、サイトマップ
-- その他20種類以上
+- その他15種類以上
 
 ## 🏗️ プロジェクト構造
 
@@ -133,9 +180,19 @@ MIT License - 詳細は[LICENSE](LICENSE)ファイルをご覧ください。
 
 ## 📊 プロジェクトステータス
 
-- **バージョン**: 0.1.0 (Alpha)
+- **バージョン**: 2.1.0 (Production Ready)
 - **Python**: 3.9+
-- **ステータス**: 🚧 開発中
+- **ステータス**: ✅ 本番実装完了
+
+---
+
+*最終更新: 2025年08月16日 14:35 JST*
+*バージョン: v2.1.0*
+
+**更新履歴:**
+- v2.1.0 (2025年08月16日): DrawIO生成、Playwright検証、セキュリティ強化の実装完了
+- v2.0.0 (2025年08月14日): コア機能の本番実装完了
+- v1.0.0 (2025年08月01日): 初期リリース
 
 ---
 

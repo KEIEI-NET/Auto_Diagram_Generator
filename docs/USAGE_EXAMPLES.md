@@ -1,556 +1,740 @@
-# Auto Diagram Generator (ADG) 使用例とベストプラクティス
+# Auto Diagram Generator - 使用例
 
-*バージョン: v1.0.0*
-*最終更新: 2025年01月16日 16:45 JST*
+*バージョン: v2.1.0*
+*最終更新: 2025年08月16日 14:55 JST*
 
 ## 目次
 
-1. [基本的な使用例](#基本的な使用例)
-2. [高度な使用例](#高度な使用例)
-3. [実践的なシナリオ](#実践的なシナリオ)
-4. [ベストプラクティス](#ベストプラクティス)
-5. [パフォーマンス最適化](#パフォーマンス最適化)
-6. [CI/CD統合](#cicd統合)
+1. [基本的な使い方](#基本的な使い方)
+2. [プロジェクト解析](#プロジェクト解析)
+3. [図の生成](#図の生成)
+4. [DrawIO形式への変換](#drawio形式への変換)
+5. [Playwright検証](#playwright検証)
+6. [実践的な例](#実践的な例)
+7. [高度な使用例](#高度な使用例)
+8. [トラブルシューティング例](#トラブルシューティング例)
 
-## 基本的な使用例
+## 基本的な使い方
 
-### 1. プロジェクトの解析
-
-#### カレントディレクトリの解析
+### 1. プロジェクトの解析と図生成
 
 ```bash
 # 現在のディレクトリを解析
-adg analyze
+python -m adg.cli.command analyze . --output output
 
-# 出力例：
-# 🔍 プロジェクトを解析中: .
-# 
-# ╭────────────────────────╮
-# │   解析結果サマリー      │
-# ├────────────┬───────────┤
-# │ 項目       │ 数        │
-# ├────────────┼───────────┤
-# │ ファイル数  │ 23        │
-# │ クラス数   │ 15        │
-# │ 関数数     │ 47        │
-# ╰────────────┴───────────╯
-# 
-# ✨ 推奨される図:
-#   • class: クラス構造が検出されました
-#   • sequence: API呼び出しパターンが検出されました
-```
-
-#### 特定ディレクトリの解析
-
-```bash
 # 特定のディレクトリを解析
-adg analyze /path/to/project
+python -m adg.cli.command analyze src --output diagrams
 
-# 詳細モードで解析
-adg analyze /path/to/project --verbose
-
-# 出力ディレクトリを指定
-adg analyze /path/to/project --output ./analysis_output
+# デバッグモードで実行
+export ADG_LOG_LEVEL=DEBUG
+python -m adg.cli.command analyze src --debug
 ```
 
-### 2. 図の自動生成
+### 2. Windows PowerShellでの使用
 
-#### 自動判定による生成
+```powershell
+# 仮想環境をアクティベート
+.\venv\Scripts\Activate.ps1
 
-```bash
-# 推奨される図をすべて生成
-adg generate --auto
+# プロジェクト解析
+python -m adg.cli.command analyze src --output output
 
-# 特定のフォーマットで生成
-adg generate --auto --format mermaid
-
-# 出力ディレクトリを指定
-adg generate --auto --output ./diagrams
+# 環境変数を設定して実行
+$env:ADG_DEV_MODE = "true"
+$env:ADG_LOG_LEVEL = "DEBUG"
+python -m adg.cli.command analyze src
 ```
 
-#### 図種別を指定して生成
+## プロジェクト解析
 
-```bash
-# クラス図のみ生成
-adg generate --types class
+### 基本的な解析
 
-# 複数の図を生成
-adg generate --types class er sequence
+```python
+from adg.core.analyzer import ProjectAnalyzer
 
-# すべてのフォーマットで生成
-adg generate --types class --format all
+# プロジェクトの解析
+analyzer = ProjectAnalyzer("src")
+analysis_result = analyzer.analyze()
+
+# 結果の確認
+print(f"Classes found: {len(analysis_result['classes'])}")
+print(f"Functions found: {len(analysis_result['functions'])}")
+print(f"Files analyzed: {len(analysis_result['files'])}")
 ```
 
-### 3. 利用可能な図種別の確認
+### 詳細な解析結果の取得
 
-```bash
-# 生成可能な図の一覧を表示
-adg list-types
+```python
+from adg.core.analyzer import ProjectAnalyzer
+import json
 
-# 出力例：
-# ╭─────────────────────────────────────────╮
-# │      生成可能な図の種類                  │
-# ├──────────┬──────────────┬──────────────┤
-# │ タイプ   │ 名称         │ 説明         │
-# ├──────────┼──────────────┼──────────────┤
-# │ class    │ クラス図     │ クラスの構造... │
-# │ er       │ ER図        │ データベース... │
-# │ sequence │ シーケンス図  │ 処理の流れ... │
-# ╰──────────┴──────────────┴──────────────╯
+analyzer = ProjectAnalyzer("src/adg")
+result = analyzer.analyze()
+
+# クラス情報の表示
+for class_name, class_info in result['classes'].items():
+    print(f"\nClass: {class_name}")
+    print(f"  File: {class_info['file']}")
+    print(f"  Methods: {', '.join(class_info['methods'])}")
+    print(f"  Attributes: {', '.join(class_info['attributes'])}")
+    if class_info['bases']:
+        print(f"  Inherits from: {', '.join(class_info['bases'])}")
+
+# 解析結果をJSONで保存
+with open("analysis_result.json", "w", encoding="utf-8") as f:
+    json.dump(result, f, indent=2, ensure_ascii=False)
 ```
 
-## 高度な使用例
+## 図の生成
 
-### 1. 設定ファイルの使用
+### Mermaid図の生成
 
-#### カスタム設定ファイルの作成
+```python
+from adg.generators.mermaid_refactored import MermaidGeneratorRefactored
+from adg.core.analyzer import ProjectAnalyzer
+from pathlib import Path
 
-`adg-config.yaml`:
+# プロジェクト解析
+analyzer = ProjectAnalyzer("src")
+analysis_result = analyzer.analyze()
 
-```yaml
-# プロジェクト設定
-project:
-  name: "My Project"
-  version: "1.0.0"
-  
-# 解析設定
-analysis:
-  exclude_patterns:
-    - "test_*.py"
-    - "*_test.py"
-    - "migrations/*"
-  max_file_size: 2097152  # 2MB
-  
-# 図生成設定
-generation:
-  default_format: "mermaid"
-  output_directory: "./docs/diagrams"
-  timestamp_format: "JST"
-  
-# 図種別ごとの設定
-diagrams:
-  class:
-    include_private: false
-    show_methods: true
-    show_attributes: true
-  er:
-    show_indexes: true
-    show_constraints: true
+# Mermaid図生成器の初期化
+generator = MermaidGeneratorRefactored(analysis_result)
+
+# 出力ディレクトリの作成
+output_dir = Path("output/mermaid")
+output_dir.mkdir(parents=True, exist_ok=True)
+
+# 各種図の生成
+# クラス図
+class_result = generator.generate('class', output_dir)
+if class_result.success:
+    print(f"Class diagram generated: {class_result.file_path}")
+
+# シーケンス図
+sequence_result = generator.generate('sequence', output_dir)
+if sequence_result.success:
+    print(f"Sequence diagram generated: {sequence_result.file_path}")
+
+# フロー図
+flow_result = generator.generate('flow', output_dir)
+if flow_result.success:
+    print(f"Flow diagram generated: {flow_result.file_path}")
+
+# ER図
+er_result = generator.generate('er', output_dir)
+if er_result.success:
+    print(f"ER diagram generated: {er_result.file_path}")
 ```
 
-#### 設定ファイルを指定して実行
+### すべての図を一括生成
 
-```bash
-# カスタム設定で解析
-adg analyze --config adg-config.yaml
+```python
+from adg.generators.mermaid_refactored import MermaidGeneratorRefactored
+from adg.core.analyzer import ProjectAnalyzer
+from pathlib import Path
 
-# 環境変数で設定ファイルを指定
-export ADG_CONFIG_FILE=adg-config.yaml
-adg generate --auto
+# 解析と生成
+analyzer = ProjectAnalyzer("src")
+analysis_result = analyzer.analyze()
+
+generator = MermaidGeneratorRefactored(analysis_result)
+output_dir = Path("output/all_diagrams")
+
+# すべての図を生成
+results = generator.generate_all(output_dir)
+
+# 結果のサマリー表示
+successful = sum(1 for r in results if r.success)
+failed = sum(1 for r in results if not r.success)
+
+print(f"\n=== Generation Summary ===")
+print(f"Total: {len(results)}")
+print(f"Successful: {successful}")
+print(f"Failed: {failed}")
+
+for result in results:
+    status = "✓" if result.success else "✗"
+    print(f"{status} {result.diagram_type}: {result.file_path or result.error}")
 ```
 
-### 2. フィルタリングとカスタマイズ
+## DrawIO形式への変換
 
-#### ファイルパターンによるフィルタリング
+### Mermaid図からDrawIO図を生成
 
-```bash
-# 特定のパターンのファイルのみ解析
-adg analyze --include "src/**/*.py" --exclude "test_*.py"
+```python
+from adg.generators.drawio_from_mermaid import MermaidBasedDrawIOGenerator
+from adg.core.analyzer import ProjectAnalyzer
+from pathlib import Path
 
-# 複数のパターンを指定
-adg analyze \
-  --include "app/**/*.py" \
-  --include "lib/**/*.py" \
-  --exclude "**/test_*.py" \
-  --exclude "**/migrations/*.py"
+# プロジェクト解析
+analyzer = ProjectAnalyzer("src")
+analysis_result = analyzer.analyze()
+
+# DrawIO生成器の初期化
+generator = MermaidBasedDrawIOGenerator(analysis_result)
+
+# 出力ディレクトリ
+output_dir = Path("output/drawio")
+output_dir.mkdir(parents=True, exist_ok=True)
+
+# すべての図をMermaid→DrawIOの順で生成
+results = generator.generate_all(output_dir)
+
+# 生成されたファイルの確認
+for result in results:
+    if result.success and result.format == 'drawio':
+        print(f"DrawIO file: {result.file_path}")
 ```
 
-#### 出力のカスタマイズ
+### 個別のDrawIO変換
 
-```bash
-# JSON形式で解析結果を出力
-adg analyze --output-format json > analysis.json
+```python
+from adg.generators.drawio_from_mermaid import DrawIOGenerator, MermaidToDrawIOParser
+from adg.generators.mermaid_refactored import ClassDiagramBuilder
+from adg.core.analyzer import ProjectAnalyzer
+from pathlib import Path
 
-# 特定の情報のみ抽出
-adg analyze --only classes,functions
+# 解析
+analyzer = ProjectAnalyzer("src")
+analysis_result = analyzer.analyze()
 
-# サマリーのみ表示
-adg analyze --summary-only
+# Mermaidクラス図を生成
+builder = ClassDiagramBuilder(analysis_result)
+mermaid_diagram = builder.build()
+
+# DrawIOに変換
+drawio_generator = DrawIOGenerator()
+output_dir = Path("output/custom_drawio")
+output_dir.mkdir(parents=True, exist_ok=True)
+
+result = drawio_generator.generate_from_mermaid(mermaid_diagram, output_dir)
+
+if result.success:
+    print(f"DrawIO diagram created: {result.file_path}")
+    # DrawIO Desktopで開く（インストール済みの場合）
+    import subprocess
+    subprocess.run(["open", result.file_path])  # macOS
+    # subprocess.run(["start", result.file_path], shell=True)  # Windows
 ```
 
-### 3. バッチ処理
+## Playwright検証
 
-#### 複数プロジェクトの一括処理
+### Mermaid図の検証と自動修正
 
-```bash
-#!/bin/bash
-# batch_analyze.sh
+```python
+from adg.utils.mermaid_playwright_validator import validate_mermaid_with_playwright
+from pathlib import Path
 
-projects=(
-  "/path/to/project1"
-  "/path/to/project2"
-  "/path/to/project3"
+# 単一ファイルの検証
+mermaid_file = Path("output/mermaid/class_diagram.mmd")
+result = validate_mermaid_with_playwright(
+    mermaid_file,
+    auto_fix=True,  # 自動修正を有効化
+    headless=True    # ヘッドレスモードで実行
 )
 
-for project in "${projects[@]}"; do
-  echo "Analyzing $project..."
-  adg analyze "$project" --output "./results/$(basename $project)"
-  adg generate "$project" --auto --output "./diagrams/$(basename $project)"
-done
+if result.is_valid:
+    print(f"✓ Valid Mermaid diagram: {mermaid_file}")
+    if result.fix_applied:
+        print("  Auto-fix was applied")
+    if result.screenshot_path:
+        print(f"  Screenshot: {result.screenshot_path}")
+else:
+    print(f"✗ Invalid diagram: {result.errors}")
 ```
 
-#### 並列処理による高速化
+### ディレクトリ内のすべてのMermaid図を検証
 
-```bash
-#!/bin/bash
-# parallel_generate.sh
+```python
+from adg.utils.mermaid_playwright_validator import validate_directory_with_playwright
+from pathlib import Path
+import json
 
-# GNU parallelを使用
-find . -type d -name "src" | parallel -j 4 adg analyze {} --output {}/diagrams
+# ディレクトリ内のすべてのMermaid図を検証
+output_dir = Path("output/mermaid")
+results = validate_directory_with_playwright(
+    output_dir,
+    pattern="*.mmd",
+    auto_fix=True,
+    headless=False  # ブラウザを表示（デバッグ用）
+)
 
-# xargsを使用
-find . -type d -maxdepth 2 | xargs -P 4 -I {} adg generate {} --auto
+# 検証レポートの生成
+report = {
+    'total': len(results),
+    'valid': sum(1 for r in results if r.is_valid),
+    'fixed': sum(1 for r in results if r.fix_applied),
+    'results': [r.to_dict() for r in results]
+}
+
+with open("validation_report.json", "w", encoding="utf-8") as f:
+    json.dump(report, f, indent=2, ensure_ascii=False)
+
+print(f"\n=== Validation Summary ===")
+print(f"Total files: {report['total']}")
+print(f"Valid: {report['valid']}")
+print(f"Auto-fixed: {report['fixed']}")
 ```
 
-## 実践的なシナリオ
+### 非同期での検証（高度な使用例）
 
-### シナリオ1: マイクロサービスアーキテクチャの可視化
+```python
+import asyncio
+from adg.utils.mermaid_playwright_validator import MermaidPlaywrightValidator
+from pathlib import Path
 
-```bash
-# 1. 全サービスの構造を解析
-for service in services/*; do
-  adg analyze "$service" --output "docs/analysis/$(basename $service)"
-done
+async def validate_multiple_files():
+    async with MermaidPlaywrightValidator(headless=True) as validator:
+        files = list(Path("output/mermaid").glob("*.mmd"))
+        
+        tasks = []
+        for file in files:
+            task = validator.validate_mermaid_file(file, auto_fix=True)
+            tasks.append(task)
+        
+        results = await asyncio.gather(*tasks)
+        
+        for file, result in zip(files, results):
+            status = "✓" if result.is_valid else "✗"
+            print(f"{status} {file.name}")
+        
+        return results
 
-# 2. サービス間の依存関係を検出
-adg analyze services/ --detect-dependencies --output docs/dependencies.json
-
-# 3. アーキテクチャ図を生成
-adg generate services/ \
-  --types component deployment \
-  --format mermaid \
-  --output docs/architecture
-
-# 4. 各サービスの詳細図を生成
-for service in services/*; do
-  adg generate "$service" \
-    --types class sequence \
-    --output "docs/diagrams/$(basename $service)"
-done
+# 実行
+results = asyncio.run(validate_multiple_files())
 ```
 
-### シナリオ2: レガシーコードの理解
+## 実践的な例
 
-```bash
-# 1. プロジェクト全体の概要を取得
-adg analyze legacy-project/ --verbose > analysis_report.txt
+### 1. Djangoプロジェクトの解析と図生成
 
-# 2. 複雑度の高い部分を特定
-adg analyze legacy-project/ \
-  --complexity-threshold high \
-  --output complex_areas.json
+```python
+from adg.core.analyzer import ProjectAnalyzer
+from adg.generators.mermaid_refactored import MermaidGeneratorRefactored
+from adg.generators.drawio_from_mermaid import MermaidBasedDrawIOGenerator
+from pathlib import Path
 
-# 3. 主要なコンポーネントの図を生成
-adg generate legacy-project/ \
-  --types class er flow \
-  --format all \
-  --output documentation/
+def analyze_django_project(project_path: str):
+    """Djangoプロジェクトの解析と図生成"""
+    
+    # models.pyファイルを重点的に解析
+    analyzer = ProjectAnalyzer(project_path)
+    result = analyzer.analyze()
+    
+    # Django特有のフィルタリング
+    django_classes = {
+        name: info for name, info in result['classes'].items()
+        if 'models.py' in info.get('file', '') or 
+           'views.py' in info.get('file', '') or
+           'serializers.py' in info.get('file', '')
+    }
+    
+    # フィルタリングされた結果で図生成
+    filtered_result = {**result, 'classes': django_classes}
+    
+    generator = MermaidGeneratorRefactored(filtered_result)
+    output_dir = Path("output/django_diagrams")
+    
+    # ER図とクラス図を生成
+    er_result = generator.generate('er', output_dir)
+    class_result = generator.generate('class', output_dir)
+    
+    print(f"Django ER Diagram: {er_result.file_path}")
+    print(f"Django Class Diagram: {class_result.file_path}")
+    
+    return [er_result, class_result]
 
-# 4. リファクタリング候補を特定
-adg analyze legacy-project/ \
-  --detect-code-smells \
-  --output refactoring_suggestions.md
+# 使用例
+results = analyze_django_project("path/to/django/project")
 ```
 
-### シナリオ3: API ドキュメント生成
+### 2. FastAPIプロジェクトの解析
 
-```bash
-# 1. API エンドポイントを解析
-adg analyze api/ --detect-endpoints --output api_analysis.json
+```python
+from adg.core.analyzer import ProjectAnalyzer
+from adg.generators.mermaid_refactored import MermaidGeneratorRefactored
+from pathlib import Path
 
-# 2. API 仕様図を生成
-adg generate api/ \
-  --types sequence flow \
-  --api-mode \
-  --output api_docs/
+def analyze_fastapi_project(project_path: str):
+    """FastAPIプロジェクトの解析"""
+    
+    analyzer = ProjectAnalyzer(project_path)
+    result = analyzer.analyze()
+    
+    # API エンドポイントの抽出
+    api_functions = {}
+    for func_name, func_info in result['functions'].items():
+        decorators = func_info.get('decorators', [])
+        # FastAPIのデコレータを持つ関数を抽出
+        if any('@app.' in str(d) or '@router.' in str(d) for d in decorators):
+            api_functions[func_name] = func_info
+    
+    # シーケンス図とフロー図を生成
+    filtered_result = {**result, 'functions': api_functions}
+    generator = MermaidGeneratorRefactored(filtered_result)
+    
+    output_dir = Path("output/fastapi_diagrams")
+    sequence_result = generator.generate('sequence', output_dir)
+    flow_result = generator.generate('flow', output_dir)
+    
+    return [sequence_result, flow_result]
 
-# 3. データモデルの図を生成
-adg generate api/models/ \
-  --types er class \
-  --output api_docs/data_models/
-
-# 4. OpenAPI仕様と統合（将来機能）
-adg export api/ --format openapi --output openapi.yaml
+# 使用例
+results = analyze_fastapi_project("path/to/fastapi/project")
 ```
 
-## ベストプラクティス
-
-### 1. プロジェクト構造の整理
-
-```
-project/
-├── .adg/                 # ADG設定とキャッシュ
-│   ├── config.yaml      # プロジェクト固有の設定
-│   └── cache/           # 解析キャッシュ
-├── docs/
-│   └── diagrams/        # 生成された図
-├── src/                 # ソースコード
-└── tests/               # テストコード
-```
-
-### 2. 継続的なドキュメント更新
-
-#### Git フックの設定
-
-`.git/hooks/pre-commit`:
-
-```bash
-#!/bin/bash
-# 変更されたファイルを解析
-changed_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$')
-
-if [ -n "$changed_files" ]; then
-  echo "Updating diagrams..."
-  adg generate --auto --output docs/diagrams/
-  git add docs/diagrams/
-fi
-```
-
-#### GitHub Actions ワークフロー
-
-`.github/workflows/update-diagrams.yml`:
+### 3. CI/CDパイプラインでの使用
 
 ```yaml
-name: Update Diagrams
+# .github/workflows/generate-docs.yml
+name: Generate Documentation Diagrams
 
 on:
   push:
-    branches: [main, develop]
-    paths:
-      - '**.py'
-      - '**.js'
-      - '**.java'
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   generate-diagrams:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v2
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v2
       with:
         python-version: '3.11'
     
-    - name: Install ADG
+    - name: Install dependencies
       run: |
-        pip install auto-diagram-generator
+        pip install -r requirements.txt
+        pip install playwright
+        playwright install chromium
     
     - name: Generate diagrams
       run: |
-        adg analyze . --output analysis/
-        adg generate . --auto --output docs/diagrams/
+        python -m adg.cli.command analyze src --output docs/diagrams
     
-    - name: Commit changes
+    - name: Validate diagrams
+      run: |
+        python -m adg.utils.mermaid_playwright_validator \
+          --directory docs/diagrams \
+          --auto-fix
+    
+    - name: Commit diagrams
+      if: github.event_name == 'push'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add docs/diagrams/
-        git diff --staged --quiet || git commit -m "Update diagrams [skip ci]"
+        git add docs/diagrams
+        git commit -m "Update documentation diagrams" || exit 0
         git push
 ```
 
-### 3. 大規模プロジェクトの処理
+## 高度な使用例
 
-#### インクリメンタル解析
+### カスタムフィルターとトランスフォーマー
 
-```bash
-# 初回: フル解析とキャッシュ作成
-adg analyze large-project/ --cache-enabled --output initial_analysis/
+```python
+from adg.core.analyzer import ProjectAnalyzer
+from adg.generators.mermaid_refactored import MermaidGeneratorRefactored
+from typing import Dict, Any
 
-# 以降: 変更部分のみ解析
-adg analyze large-project/ --incremental --output updated_analysis/
-
-# キャッシュをクリア
-adg cache clear
-```
-
-#### メモリ効率的な処理
-
-```bash
-# ストリーミングモードで大規模ファイルを処理
-adg analyze huge-project/ --streaming --max-memory 2G
-
-# ファイルを分割して処理
-adg analyze huge-project/ --chunk-size 100 --parallel 4
-```
-
-## パフォーマンス最適化
-
-### 1. キャッシングの活用
-
-```bash
-# キャッシュを有効化
-adg analyze . --cache-enabled
-
-# キャッシュの統計を表示
-adg cache stats
-
-# キャッシュサイズ：1.2 GB
-# ヒット率：87%
-# 最終更新：2025-01-16 15:30 JST
-```
-
-### 2. 並列処理の設定
-
-```bash
-# CPUコア数に応じて並列度を調整
-adg analyze . --parallel $(nproc)
-
-# 明示的に並列度を指定
-adg analyze . --parallel 8
-
-# 並列処理を無効化（デバッグ用）
-adg analyze . --no-parallel
-```
-
-### 3. 選択的な処理
-
-```bash
-# 特定の言語のみ処理
-adg analyze . --languages python,javascript
-
-# 特定のサイズ以下のファイルのみ処理
-adg analyze . --max-file-size 100KB
-
-# 最近変更されたファイルのみ処理
-adg analyze . --modified-since "2025-01-01"
-```
-
-## CI/CD統合
-
-### Jenkins Pipeline
-
-```groovy
-pipeline {
-    agent any
+class CustomAnalyzer:
+    """カスタム解析ロジック"""
     
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-        
-        stage('Analyze Code') {
-            steps {
-                sh 'adg analyze . --output reports/analysis/'
-            }
-        }
-        
-        stage('Generate Diagrams') {
-            steps {
-                sh 'adg generate . --auto --output docs/diagrams/'
-            }
-        }
-        
-        stage('Archive Artifacts') {
-            steps {
-                archiveArtifacts artifacts: 'docs/diagrams/**/*', 
-                                 allowEmptyArchive: false
-            }
-        }
-    }
+    def __init__(self, project_path: str):
+        self.analyzer = ProjectAnalyzer(project_path)
     
-    post {
-        always {
-            publishHTML([
-                reportDir: 'docs/diagrams',
-                reportFiles: 'index.html',
-                reportName: 'Architecture Diagrams'
-            ])
+    def analyze_with_filters(self, 
+                            include_private: bool = False,
+                            min_method_count: int = 3) -> Dict[str, Any]:
+        """フィルタリング付き解析"""
+        result = self.analyzer.analyze()
+        
+        # プライベートメソッドのフィルタリング
+        if not include_private:
+            for class_info in result['classes'].values():
+                class_info['methods'] = [
+                    m for m in class_info.get('methods', [])
+                    if not m.startswith('_')
+                ]
+        
+        # メソッド数によるクラスのフィルタリング
+        filtered_classes = {
+            name: info for name, info in result['classes'].items()
+            if len(info.get('methods', [])) >= min_method_count
         }
-    }
-}
+        
+        result['classes'] = filtered_classes
+        return result
+    
+    def generate_custom_diagram(self, output_path: str):
+        """カスタマイズされた図の生成"""
+        analysis = self.analyze_with_filters(
+            include_private=False,
+            min_method_count=3
+        )
+        
+        generator = MermaidGeneratorRefactored(analysis)
+        result = generator.generate('class', Path(output_path))
+        
+        return result
+
+# 使用例
+custom_analyzer = CustomAnalyzer("src")
+result = custom_analyzer.generate_custom_diagram("output/custom")
 ```
 
-### GitLab CI
+### バッチ処理スクリプト
 
-`.gitlab-ci.yml`:
+```python
+#!/usr/bin/env python
+"""
+複数のプロジェクトを一括処理するスクリプト
+"""
 
-```yaml
-stages:
-  - analyze
-  - generate
-  - deploy
+from pathlib import Path
+from adg.core.analyzer import ProjectAnalyzer
+from adg.generators.drawio_from_mermaid import MermaidBasedDrawIOGenerator
+import json
+from datetime import datetime
+import pytz
 
-analyze:
-  stage: analyze
-  image: python:3.11
-  script:
-    - pip install auto-diagram-generator
-    - adg analyze . --output analysis/
-  artifacts:
-    paths:
-      - analysis/
-    expire_in: 1 week
+def batch_process_projects(project_dirs: list, output_base: str):
+    """複数プロジェクトの一括処理"""
+    
+    tokyo_tz = pytz.timezone('Asia/Tokyo')
+    timestamp = datetime.now(tokyo_tz).strftime("%Y%m%d_%H%M%S")
+    results = []
+    
+    for project_dir in project_dirs:
+        project_path = Path(project_dir)
+        if not project_path.exists():
+            print(f"Skipping {project_dir}: not found")
+            continue
+        
+        print(f"\nProcessing: {project_path.name}")
+        
+        try:
+            # 解析
+            analyzer = ProjectAnalyzer(str(project_path))
+            analysis_result = analyzer.analyze()
+            
+            # 出力ディレクトリ
+            output_dir = Path(output_base) / project_path.name / timestamp
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 図生成
+            generator = MermaidBasedDrawIOGenerator(analysis_result)
+            diagram_results = generator.generate_all(output_dir)
+            
+            # 結果を記録
+            project_result = {
+                'project': project_path.name,
+                'timestamp': timestamp,
+                'success': True,
+                'diagrams': [
+                    {
+                        'type': r.diagram_type,
+                        'format': r.format,
+                        'path': r.file_path
+                    }
+                    for r in diagram_results if r.success
+                ],
+                'errors': [r.error for r in diagram_results if not r.success]
+            }
+            
+        except Exception as e:
+            project_result = {
+                'project': project_path.name,
+                'timestamp': timestamp,
+                'success': False,
+                'error': str(e)
+            }
+        
+        results.append(project_result)
+    
+    # サマリーレポート生成
+    report_file = Path(output_base) / f"batch_report_{timestamp}.json"
+    with open(report_file, 'w', encoding='utf-8') as f:
+        json.dump({
+            'timestamp': timestamp,
+            'total_projects': len(results),
+            'successful': sum(1 for r in results if r['success']),
+            'failed': sum(1 for r in results if not r['success']),
+            'results': results
+        }, f, indent=2, ensure_ascii=False)
+    
+    print(f"\nBatch processing complete. Report: {report_file}")
+    return results
 
-generate-diagrams:
-  stage: generate
-  image: python:3.11
-  dependencies:
-    - analyze
-  script:
-    - pip install auto-diagram-generator
-    - adg generate . --auto --output diagrams/
-  artifacts:
-    paths:
-      - diagrams/
-    expire_in: 1 month
+# 使用例
+projects = [
+    "/path/to/project1",
+    "/path/to/project2",
+    "/path/to/project3"
+]
 
-deploy-docs:
-  stage: deploy
-  dependencies:
-    - generate-diagrams
-  script:
-    - cp -r diagrams/ public/
-  artifacts:
-    paths:
-      - public/
-  only:
-    - main
+results = batch_process_projects(projects, "output/batch")
 ```
 
 ## トラブルシューティング例
 
-### メモリ不足エラーの対処
+### エラーハンドリング
 
-```bash
-# メモリ使用量を制限
-adg analyze . --max-memory 1G
+```python
+from adg.core.analyzer import ProjectAnalyzer
+from adg.generators.mermaid_refactored import MermaidGeneratorRefactored
+from pathlib import Path
+import traceback
 
-# ファイルを分割処理
-find . -name "*.py" | split -l 100 - batch_
-for batch in batch_*; do
-  adg analyze --file-list "$batch" --output "results/$batch/"
-done
+def safe_generate_diagrams(project_path: str):
+    """エラーハンドリング付き図生成"""
+    
+    try:
+        # 解析フェーズ
+        print(f"Analyzing {project_path}...")
+        analyzer = ProjectAnalyzer(project_path)
+        analysis_result = analyzer.analyze()
+        
+        if not analysis_result.get('classes') and not analysis_result.get('functions'):
+            print("Warning: No classes or functions found in the project")
+            return []
+        
+        # 生成フェーズ
+        print("Generating diagrams...")
+        generator = MermaidGeneratorRefactored(analysis_result)
+        output_dir = Path("output/safe")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        results = []
+        diagram_types = ['class', 'sequence', 'flow', 'er']
+        
+        for diagram_type in diagram_types:
+            try:
+                result = generator.generate(diagram_type, output_dir)
+                results.append(result)
+                
+                if result.success:
+                    print(f"✓ {diagram_type} diagram generated")
+                else:
+                    print(f"✗ {diagram_type} diagram failed: {result.error}")
+                    
+            except Exception as e:
+                print(f"Error generating {diagram_type} diagram: {e}")
+                traceback.print_exc()
+        
+        return results
+        
+    except FileNotFoundError as e:
+        print(f"Error: Project path not found: {e}")
+    except PermissionError as e:
+        print(f"Error: Permission denied: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        traceback.print_exc()
+    
+    return []
+
+# 使用例
+results = safe_generate_diagrams("src")
 ```
 
-### 解析速度の改善
+### デバッグ情報の取得
 
-```bash
-# プロファイリングを有効化
-adg analyze . --profile --output profile_report.html
+```python
+import logging
+from loguru import logger
+from adg.core.analyzer import ProjectAnalyzer
+from pathlib import Path
 
-# ボトルネックを特定して最適化
-adg analyze . --skip-heavy-operations --fast-mode
+# デバッグログの設定
+logger.add("debug.log", level="DEBUG", rotation="10 MB")
+
+def debug_analysis(project_path: str):
+    """デバッグ情報付き解析"""
+    
+    logger.info(f"Starting analysis of {project_path}")
+    
+    analyzer = ProjectAnalyzer(project_path)
+    
+    # ファイル一覧の取得
+    py_files = list(Path(project_path).rglob("*.py"))
+    logger.debug(f"Found {len(py_files)} Python files")
+    
+    # 解析実行
+    result = analyzer.analyze()
+    
+    # 統計情報
+    logger.info(f"Classes found: {len(result.get('classes', {}))}")
+    logger.info(f"Functions found: {len(result.get('functions', {}))}")
+    logger.info(f"Files analyzed: {len(result.get('files', {}))}")
+    
+    # 詳細情報
+    for class_name in result.get('classes', {}).keys():
+        logger.debug(f"Class: {class_name}")
+    
+    return result
+
+# 使用例
+result = debug_analysis("src")
+```
+
+### パフォーマンス計測
+
+```python
+import time
+from adg.core.analyzer import ProjectAnalyzer
+from adg.generators.mermaid_refactored import MermaidGeneratorRefactored
+from pathlib import Path
+
+def benchmark_generation(project_path: str):
+    """パフォーマンス計測付き図生成"""
+    
+    times = {}
+    
+    # 解析時間の計測
+    start = time.time()
+    analyzer = ProjectAnalyzer(project_path)
+    analysis_result = analyzer.analyze()
+    times['analysis'] = time.time() - start
+    
+    # 生成器の初期化
+    generator = MermaidGeneratorRefactored(analysis_result)
+    output_dir = Path("output/benchmark")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 各図の生成時間を計測
+    diagram_types = ['class', 'sequence', 'flow', 'er']
+    
+    for diagram_type in diagram_types:
+        start = time.time()
+        result = generator.generate(diagram_type, output_dir)
+        times[f'{diagram_type}_generation'] = time.time() - start
+    
+    # 結果表示
+    print("\n=== Performance Benchmark ===")
+    for operation, duration in times.items():
+        print(f"{operation}: {duration:.3f} seconds")
+    
+    print(f"\nTotal time: {sum(times.values()):.3f} seconds")
+    
+    return times
+
+# 使用例
+times = benchmark_generation("src")
 ```
 
 ---
 
-*最終更新: 2025年01月16日 16:45 JST*
-*バージョン: v1.0.0*
+*最終更新: 2025年08月16日 14:55 JST*
+*バージョン: v2.1.0*
 
 **更新履歴:**
-- v1.0.0 (2025年01月16日): 初版作成、包括的な使用例とベストプラクティスを文書化
+- v2.1.0 (2025年08月16日): DrawIO生成、Playwright検証、実践例を追加
+- v2.0.0 (2025年08月14日): 本番実装に基づく使用例を追加
+- v1.0.0 (2025年01月16日): 初版作成

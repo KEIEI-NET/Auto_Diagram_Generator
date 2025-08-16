@@ -1,7 +1,7 @@
 # Auto Diagram Generator (ADG) アーキテクチャドキュメント
 
-*バージョン: v1.0.0*
-*最終更新: 2025年01月16日 16:35 JST*
+*バージョン: v2.1.0*
+*最終更新: 2025年08月16日 14:50 JST*
 
 ## 目次
 
@@ -11,19 +11,26 @@
 4. [コンポーネント詳細](#コンポーネント詳細)
 5. [データフロー](#データフロー)
 6. [技術スタック](#技術スタック)
-7. [拡張性設計](#拡張性設計)
-8. [パフォーマンス設計](#パフォーマンス設計)
-9. [セキュリティ設計](#セキュリティ設計)
+7. [実装アーキテクチャ](#実装アーキテクチャ)
+8. [セキュリティ設計](#セキュリティ設計)
+9. [パフォーマンス最適化](#パフォーマンス最適化)
 
 ## システム概要
 
-Auto Diagram Generator (ADG) は、ソースコードを解析して各種技術ドキュメント図を自動生成するPythonベースのツールです。プラグイン可能なアーキテクチャを採用し、複数の言語と図形式をサポートします。
+Auto Diagram Generator (ADG) は、ソースコードを解析して各種技術ドキュメント図を自動生成するPythonベースのツールです。2025年8月現在、本番実装が完了し、以下の機能を提供しています：
+
+- **AST（抽象構文木）ベースのコード解析**
+- **Mermaid/DrawIO形式での図生成**
+- **Playwrightによるブラウザベース検証**
+- **自動エラー修正機能**
+- **セキュアなファイル処理**
 
 ### アーキテクチャスタイル
 
-- **レイヤードアーキテクチャ**: 明確な責任分離
+- **レイヤードアーキテクチャ**: 明確な責任分離と依存関係管理
+- **ビジターパターン**: AST解析での効率的なノード処理
+- **ビルダーパターン**: 図生成での柔軟な構築プロセス
 - **パイプライン＆フィルター**: データ処理の流れ
-- **プラグインアーキテクチャ**: 拡張可能な設計
 
 ## アーキテクチャ原則
 
@@ -31,355 +38,390 @@ Auto Diagram Generator (ADG) は、ソースコードを解析して各種技術
 各コンポーネントは単一の責任を持ち、明確に定義された役割を果たします。
 
 ### 2. 開放/閉鎖の原則 (OCP)
-新しい言語や図形式の追加は、既存コードの変更なしに拡張として実装できます。
+新しい図形式の追加は、既存コードの変更なしに拡張として実装できます。
 
 ### 3. 依存性逆転の原則 (DIP)
 高レベルモジュールは低レベルモジュールに依存せず、両方が抽象に依存します。
 
-### 4. インターフェース分離の原則 (ISP)
-クライアントは使用しないメソッドへの依存を強制されません。
+### 4. セキュリティ・バイ・デザイン
+パストラバーサル対策、入力検証、セキュアなファイル処理を標準実装。
 
 ## システム構成
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                         CLI Layer                            │
+│                    CLI Interface Layer                       │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │ analyze  │  │ generate │  │list-types│  │  config  │  │
+│  │ Command  │  │   Args   │  │  Config  │  │  Logger  │  │
+│  │ Handler  │  │  Parser  │  │  Loader  │  │  Setup   │  │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────┐
-│                      Core Logic Layer                        │
+│                      Core Analysis Layer                     │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
-│  │  Analyzer   │  │  Detector   │  │  Generator  │        │
-│  │   Engine    │  │   Engine    │  │  Controller │        │
+│  │  Project    │  │    AST      │  │  Diagram    │        │
+│  │  Analyzer   │  │   Visitor   │  │  Detector   │        │
 │  └─────────────┘  └─────────────┘  └─────────────┘        │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────┐
-│                    Language Parsers Layer                    │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │  Python  │  │JavaScript│  │   Java   │  │   SQL    │  │
-│  │  Parser  │  │  Parser  │  │  Parser  │  │  Parser  │  │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+│                    Generation Layer                          │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐           │
+│  │  Mermaid   │  │   DrawIO   │  │  PlantUML  │           │
+│  │ Generator  │  │ Generator  │  │ (Future)   │           │
+│  └────────────┘  └────────────┘  └────────────┘           │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────┐
-│                   Diagram Generators Layer                   │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │ Mermaid  │  │PlantUML  │  │ Draw.io  │  │ GraphViz │  │
-│  │Generator │  │Generator │  │Generator │  │Generator │  │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+│                    Validation Layer                          │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐           │
+│  │ Playwright │  │  Mermaid   │  │   Auto     │           │
+│  │ Validator  │  │   Viewer   │  │   Fixer    │           │
+│  └────────────┘  └────────────┘  └────────────┘           │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────┐
 │                      Utility Layer                           │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │  Cache   │  │  Logger  │  │ Version  │  │Validation│  │
-│  │ Manager  │  │  System  │  │ Manager  │  │  Utils   │  │
+│  │ Security │  │  Cache   │  │  Version │  │  Export  │  │
+│  │  Utils   │  │ Manager  │  │  Control │  │  Manager │  │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## コンポーネント詳細
 
-### CLI Layer
+### 1. CLI Interface Layer
 
-#### コマンドプロセッサー
-- **責任**: ユーザー入力の処理とコマンドのルーティング
-- **技術**: Click framework
-- **インターフェース**: コマンドライン引数とオプション
-
-```python
-# コマンド構造
-adg/
-├── analyze     # 解析コマンド
-├── generate    # 生成コマンド
-└── list-types  # 図種別一覧コマンド
-```
-
-### Core Logic Layer
-
-#### Analyzer Engine
-- **責任**: プロジェクト全体の解析オーケストレーション
-- **主要クラス**: ProjectAnalyzer
-- **処理フロー**:
-  1. ファイル探索
-  2. 言語判定
-  3. パーサー選択
-  4. 解析実行
-  5. 結果集約
-
-#### Detector Engine
-- **責任**: 必要な図の自動判定
-- **主要クラス**: DiagramDetector
-- **判定基準**:
-  - コード構造の複雑度
-  - クラス/関数の数
-  - 依存関係の密度
-  - 特定パターンの検出
-
-#### Generator Controller
-- **責任**: 図生成の制御と調整
+#### Command Handler (`src/adg/cli/command.py`)
+- **責任**: コマンドライン引数の処理とコマンドルーティング
+- **実装**: Click framework使用
 - **主要機能**:
-  - 生成順序の最適化
-  - 並列処理の管理
-  - エラーハンドリング
-  - 進捗管理
+  - `analyze`: プロジェクト解析と図生成
+  - `validate`: Mermaid図の検証
+  - `convert`: フォーマット間の変換
 
-### Language Parsers Layer
+### 2. Core Analysis Layer
 
-#### Python Parser
-- **技術**: AST (Abstract Syntax Tree)
-- **対応要素**:
-  - クラス定義
-  - 関数/メソッド
-  - インポート文
-  - デコレーター
-  - 型ヒント
+#### Project Analyzer (`src/adg/core/analyzer.py`)
+- **責任**: プロジェクト全体の解析と構造抽出
+- **実装詳細**:
+  ```python
+  class ProjectAnalyzer:
+      def __init__(self, project_path: str):
+          self.project_path = Path(project_path)
+          self.file_cache = {}
+          
+      def analyze(self) -> Dict[str, Any]:
+          # AST解析を実行
+          # クラス、関数、依存関係を抽出
+          # 結果を構造化データとして返す
+  ```
 
-#### JavaScript Parser (将来実装)
-- **技術**: tree-sitter
-- **対応要素**:
-  - ES6+ クラス
-  - 関数定義
-  - モジュールシステム
-  - React/Vue コンポーネント
+#### AST Visitor (`src/adg/core/ast_visitor.py`)
+- **責任**: Pythonコードの抽象構文木を効率的に走査
+- **パターン**: ビジターパターン実装
+- **抽出情報**:
+  - クラス定義（継承、属性、メソッド）
+  - 関数定義（引数、戻り値、デコレータ）
+  - インポート関係
+  - 型アノテーション
 
-### Diagram Generators Layer
+#### Diagram Detector (`src/adg/core/detector.py`)
+- **責任**: コード内容から適切な図の種類を自動判定
+- **判定ロジック**:
+  - クラスが多い → クラス図
+  - データベース関連 → ER図
+  - 関数呼び出しチェーン → シーケンス図
+  - 条件分岐が多い → フロー図
 
-#### Mermaid Generator
-- **出力形式**: Mermaid記法のマークダウン
-- **対応図種**:
-  - クラス図
-  - ER図
-  - シーケンス図
-  - フローチャート
+### 3. Generation Layer
 
-#### PlantUML Generator (将来実装)
-- **出力形式**: PlantUML記法
-- **特徴**: より詳細な図の表現が可能
+#### Mermaid Generator (`src/adg/generators/mermaid_refactored.py`)
+- **責任**: Mermaid形式の図生成
+- **設計パターン**: ビルダーパターン
+- **実装クラス**:
+  ```python
+  class MermaidGeneratorRefactored:
+      def __init__(self, analysis_result: Dict[str, Any]):
+          self.builders = {
+              'class': ClassDiagramBuilder,
+              'sequence': SequenceDiagramBuilder,
+              'flow': FlowDiagramBuilder,
+              'er': ERDiagramBuilder
+          }
+  ```
 
-### Utility Layer
+#### DrawIO Generator (`src/adg/generators/drawio_from_mermaid.py`)
+- **責任**: Mermaid構造からDrawIO XML形式への変換
+- **主要機能**:
+  - Mermaid図の解析
+  - レイアウト計算
+  - DrawIO XML生成
+  - スタイル適用
 
-#### Cache Manager
-- **技術**: diskcache
-- **キャッシュ戦略**:
-  - ファイルハッシュベース
-  - TTL: 24時間
-  - LRU eviction
+### 4. Validation Layer
 
-#### Logger System
-- **技術**: loguru
-- **ログレベル**:
-  - DEBUG: 詳細なデバッグ情報
-  - INFO: 一般的な情報
-  - WARNING: 警告
-  - ERROR: エラー
-  - CRITICAL: 致命的エラー
+#### Playwright Validator (`src/adg/utils/mermaid_playwright_validator.py`)
+- **責任**: ブラウザでの実際のレンダリング検証
+- **機能**:
+  - リアルタイムレンダリング
+  - エラー検出
+  - スクリーンショット生成
+  - 自動修正提案
+
+#### Auto Fixer
+- **責任**: 検出されたエラーの自動修正
+- **修正パターン**:
+  - 構文エラー
+  - 未定義参加者
+  - 不正な矢印記法
+  - 重複定義
+
+### 5. Utility Layer
+
+#### Security Utils (`src/adg/utils/security.py`)
+- **責任**: セキュアなファイル操作
+- **実装機能**:
+  ```python
+  def secure_path_join(base_path: Path, *paths: str) -> Path:
+      # パストラバーサル対策
+      # 安全なパス結合
+      
+  def validate_input(data: str, pattern: str) -> bool:
+      # 入力検証
+      # SQLインジェクション対策
+  ```
 
 ## データフロー
 
-### 解析フロー
-
+### 1. 解析フロー
 ```
-入力ファイル
-    ↓
-[ファイル読み込み]
-    ↓
-[言語判定]
-    ↓
-[パーサー選択]
-    ↓
-[構文解析]
-    ↓
-[構造抽出]
-    ↓
-[メタデータ付与]
-    ↓
-解析結果オブジェクト
+入力ファイル → AST解析 → 構造抽出 → データモデル生成
 ```
 
-### 図生成フロー
-
+### 2. 生成フロー
 ```
-解析結果
-    ↓
-[図種別判定]
-    ↓
-[優先度計算]
-    ↓
-[ジェネレーター選択]
-    ↓
-[図データ構築]
-    ↓
-[レイアウト計算]
-    ↓
-[フォーマット変換]
-    ↓
-出力ファイル
+データモデル → 図種判定 → Mermaid生成 → DrawIO変換 → 出力
+```
+
+### 3. 検証フロー
+```
+Mermaid図 → Playwright検証 → エラー検出 → 自動修正 → 再検証
 ```
 
 ## 技術スタック
 
 ### コア技術
+- **言語**: Python 3.9+
+- **AST処理**: Python ast モジュール
+- **CLI**: Click 8.0+
+- **ロギング**: Loguru
 
-| カテゴリ | 技術 | バージョン | 用途 |
-|---------|------|-----------|------|
-| 言語 | Python | 3.9+ | メイン開発言語 |
-| CLI | Click | 8.1.0+ | コマンドライン処理 |
-| 設定 | PyYAML | 6.0+ | 設定ファイル管理 |
-| UI | Rich | 13.0.0+ | ターミナルUI |
+### 図生成
+- **Mermaid**: テキストベース図生成
+- **DrawIO**: XML形式図生成
+- **Playwright**: ブラウザ自動化（検証用）
 
-### 解析技術
+### 開発ツール
+- **パッケージ管理**: uv (推奨) / pip
+- **テスト**: pytest
+- **型チェック**: mypy
+- **フォーマッター**: black, isort
 
-| カテゴリ | 技術 | 用途 |
-|---------|------|------|
-| Python解析 | ast | Python構文解析 |
-| 汎用解析 | tree-sitter | 多言語対応 |
-| コード分析 | astroid | 高度な静的解析 |
-| 構文ハイライト | pygments | コード表示 |
+## 実装アーキテクチャ
 
-### 図生成技術
+### ディレクトリ構造
+```
+src/adg/
+├── cli/              # CLIインターフェース
+│   ├── __init__.py
+│   └── command.py    # コマンドハンドラー
+├── core/             # コア機能
+│   ├── __init__.py
+│   ├── analyzer.py   # プロジェクト解析
+│   ├── ast_visitor.py # AST走査
+│   ├── detector.py   # 図種判定
+│   └── results.py    # 結果管理
+├── generators/       # 図生成器
+│   ├── __init__.py
+│   ├── mermaid_refactored.py    # Mermaid生成
+│   ├── drawio_from_mermaid.py   # DrawIO変換
+│   └── mermaid_auto_fix.py      # 自動修正
+└── utils/           # ユーティリティ
+    ├── __init__.py
+    ├── security.py   # セキュリティ
+    ├── validation.py # 検証
+    └── mermaid_playwright_validator.py # Playwright検証
+```
 
-| カテゴリ | 技術 | 用途 |
-|---------|------|------|
-| グラフ描画 | graphviz | 基本的なグラフ生成 |
-| Mermaid | mermaid-cli | Mermaid図の生成 |
-| PlantUML | plantuml | UML図の生成 |
+### クラス設計
 
-### ユーティリティ
-
-| カテゴリ | 技術 | 用途 |
-|---------|------|------|
-| ログ | loguru | ロギング |
-| キャッシュ | diskcache | ディスクキャッシュ |
-| 時刻 | pytz | タイムゾーン管理 |
-| 環境変数 | python-dotenv | 環境設定 |
-
-## 拡張性設計
-
-### プラグインシステム
-
+#### 基底クラス
 ```python
-# プラグインインターフェース
-class ADGPlugin(ABC):
+class DiagramGenerator(ABC):
+    """図生成器の基底クラス"""
     @abstractmethod
-    def initialize(self, config: Dict[str, Any]):
-        """プラグイン初期化"""
+    def generate(self, data: Dict[str, Any]) -> DiagramResult:
         pass
-    
+
+class DiagramBuilder(ABC):
+    """図ビルダーの基底クラス"""
     @abstractmethod
-    def execute(self, context: PluginContext):
-        """プラグイン実行"""
+    def build(self) -> MermaidDiagram:
         pass
 ```
 
-### 言語パーサーの追加
-
+#### データクラス
 ```python
-# 新しい言語パーサーの実装例
-class RustAnalyzer(CodeAnalyzer):
-    def analyze(self) -> Dict[str, Any]:
-        # Rust固有の解析ロジック
-        return self._parse_rust_code()
+@dataclass
+class DiagramResult:
+    """図生成結果"""
+    success: bool
+    diagram_type: str
+    format: str
+    content: Optional[str]
+    file_path: Optional[str]
+    error: Optional[str]
+
+@dataclass
+class MermaidDiagram:
+    """Mermaid図データ"""
+    type: str
+    title: str
+    content: List[str]
+    metadata: Dict[str, Any]
 ```
-
-### 図形式の追加
-
-```python
-# 新しい図形式の追加例
-class D2Generator(DiagramGenerator):
-    def generate(self, diagram_type: str) -> str:
-        # D2形式での図生成
-        return self._create_d2_diagram()
-```
-
-## パフォーマンス設計
-
-### 並列処理
-
-```python
-# ファイル解析の並列化
-from concurrent.futures import ThreadPoolExecutor
-
-with ThreadPoolExecutor(max_workers=4) as executor:
-    futures = [executor.submit(analyze_file, path) 
-               for path in file_paths]
-    results = [f.result() for f in futures]
-```
-
-### キャッシング戦略
-
-1. **ファイルレベルキャッシュ**
-   - ファイルハッシュによるキャッシュキー
-   - 変更がない場合は再解析をスキップ
-
-2. **プロジェクトレベルキャッシュ**
-   - 依存関係グラフのキャッシュ
-   - インクリメンタル更新
-
-### メモリ最適化
-
-- ストリーミング処理による大規模ファイル対応
-- 遅延評価による必要時のみのデータロード
-- 弱参照を使用したメモリリークの防止
 
 ## セキュリティ設計
 
-### 入力検証
-
+### 1. パストラバーサル対策
 ```python
-# ファイルパスの検証
-def validate_path(path: str) -> bool:
-    """パストラバーサル攻撃を防ぐ"""
-    resolved = Path(path).resolve()
-    base = Path.cwd().resolve()
-    return resolved.is_relative_to(base)
+def secure_path_join(base_path: Path, *paths: str) -> Path:
+    """安全なパス結合"""
+    base = base_path.resolve()
+    full_path = base.joinpath(*paths).resolve()
+    
+    if not full_path.is_relative_to(base):
+        raise SecurityError("Path traversal detected")
+    
+    return full_path
 ```
 
-### サンドボックス実行
+### 2. 入力検証
+- ファイルパスの正規化
+- 拡張子のホワイトリスト
+- サイズ制限
+- 文字エンコーディング検証
 
-- 外部コマンドの実行は制限
-- ファイルシステムアクセスは指定ディレクトリのみ
-- ネットワークアクセスなし（ローカル実行のみ）
+### 3. 実行時セキュリティ
+- サンドボックス環境での実行
+- リソース制限
+- タイムアウト設定
 
-### エラーハンドリング
+## パフォーマンス最適化
 
+### 1. キャッシング戦略
+- AST解析結果のキャッシュ
+- 生成済み図のキャッシュ
+- インクリメンタル更新
+
+### 2. 並列処理
 ```python
-# セキュアなエラーハンドリング
-try:
-    result = analyze_code(file_path)
-except Exception as e:
-    # 内部エラー情報を隠蔽
-    logger.error(f"Analysis failed: {e}")
-    return {"error": "Analysis failed", "code": "ANALYSIS_ERROR"}
+from concurrent.futures import ThreadPoolExecutor
+
+def analyze_files_parallel(files: List[Path]) -> List[Dict]:
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        results = executor.map(analyze_file, files)
+    return list(results)
 ```
 
-## 将来の拡張計画
+### 3. メモリ最適化
+- ストリーミング処理
+- 遅延評価
+- 不要なオブジェクトの早期解放
 
-### フェーズ1（短期）
-- JavaScript/TypeScript サポート
-- PlantUML生成器の実装
-- 基本的なキャッシュシステム
+## 拡張ポイント
 
-### フェーズ2（中期）
-- Java/C# サポート
-- Draw.io生成器
-- プラグインシステムの実装
-- Web UIの追加
+### 新しい図形式の追加
+1. `DiagramBuilder`を継承
+2. ビルダークラスを実装
+3. ジェネレーターに登録
 
-### フェーズ3（長期）
-- AI統合（Claude API）
-- リアルタイム協調編集
-- クラウドサービス化
-- IDE統合
+### 新しい言語サポート
+1. パーサーを実装
+2. ASTビジターを拡張
+3. 言語固有の検出ロジック追加
+
+### カスタムバリデーター
+1. `Validator`インターフェースを実装
+2. 検証ロジックを定義
+3. バリデーションパイプラインに統合
+
+## デプロイメントアーキテクチャ
+
+### Docker構成
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+RUN pip install playwright && playwright install chromium --with-deps
+COPY . .
+CMD ["python", "-m", "adg.cli.command"]
+```
+
+### CI/CDパイプライン
+1. **ビルド**: 依存関係インストール
+2. **テスト**: ユニットテスト、統合テスト
+3. **検証**: 型チェック、リンター
+4. **デプロイ**: Dockerイメージ作成
+
+## 監視とロギング
+
+### ロギング戦略
+```python
+from loguru import logger
+
+logger.add("adg.log", rotation="10 MB", retention="7 days")
+logger.add(sys.stderr, level="ERROR")
+```
+
+### メトリクス
+- 処理時間
+- メモリ使用量
+- エラー率
+- 図生成成功率
+
+## トラブルシューティング
+
+### デバッグモード
+```bash
+export ADG_LOG_LEVEL=DEBUG
+python -m adg.cli.command analyze --debug
+```
+
+### パフォーマンスプロファイリング
+```python
+import cProfile
+import pstats
+
+profiler = cProfile.Profile()
+profiler.enable()
+# 処理実行
+profiler.disable()
+stats = pstats.Stats(profiler)
+stats.sort_stats('cumulative')
+stats.print_stats()
+```
 
 ---
 
-*最終更新: 2025年01月16日 16:35 JST*
-*バージョン: v1.0.0*
+*最終更新: 2025年08月16日 14:50 JST*
+*バージョン: v2.1.0*
 
 **更新履歴:**
-- v1.0.0 (2025年01月16日): 初版作成、包括的なアーキテクチャ設計を文書化
+- v2.1.0 (2025年08月16日): 本番実装のアーキテクチャを反映、DrawIO生成とPlaywright検証を追加
+- v2.0.0 (2025年08月14日): セキュリティ設計とパフォーマンス最適化を追加
+- v1.0.0 (2025年01月16日): 初版作成
