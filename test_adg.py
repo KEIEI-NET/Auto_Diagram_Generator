@@ -28,8 +28,20 @@ def test_analyzer():
     if result.get('classes'):
         print("\n検出されたクラス:")
         for cls in result['classes']:
-            print(f"  - {cls.name}")
-            print(f"    メソッド: {', '.join(cls.methods[:3])}...")
+            if isinstance(cls, dict):
+                # 辞書形式の場合
+                class_name = cls.get('name', 'Unknown')
+                methods = cls.get('methods', [])
+                print(f"  - {class_name}")
+                if methods:
+                    method_str = ', '.join(methods[:3])
+                    print(f"    メソッド: {method_str}...")
+            else:
+                # オブジェクト形式の場合
+                print(f"  - {cls.name}")
+                if hasattr(cls, 'methods') and cls.methods:
+                    method_str = ', '.join(cls.methods[:3])
+                    print(f"    メソッド: {method_str}...")
 
 
 def test_project_analyzer():

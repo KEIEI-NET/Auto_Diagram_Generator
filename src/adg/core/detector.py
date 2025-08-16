@@ -3,7 +3,7 @@
 コード解析結果から必要な図を自動判定
 """
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from loguru import logger
 
@@ -47,11 +47,19 @@ class DiagramDetector:
         recommendations.sort(key=lambda x: x['priority'], reverse=True)
         return recommendations
     
-    def _detect_class_diagram(self, analysis: Dict[str, Any]) -> DiagramRecommendation:
+    def _detect_class_diagram(self, analysis: Dict[str, Any]) -> Optional[DiagramRecommendation]:
         """クラス図の必要性を判定"""
-        total_classes = analysis['summary'].get('total_classes', 0)
-        
-        if total_classes == 0:
+        try:
+            summary = analysis.get('summary', {})
+            if not isinstance(summary, dict):
+                logger.warning("Invalid summary structure in analysis")
+                return None
+            
+            total_classes = summary.get('total_classes', 0)
+            if not isinstance(total_classes, (int, float)) or total_classes <= 0:
+                return None
+        except Exception as e:
+            logger.error(f"Error in class diagram detection: {e}")
             return None
         
         # クラス数に基づいて優先度を決定
@@ -120,9 +128,16 @@ class DiagramDetector:
         async_count = 0
         
         for file_path, file_analysis in analysis.get('files', {}).items():
+            if not isinstance(file_analysis, dict):
+                continue
+            
             # 非同期関数のカウント
-            for func in file_analysis.get('functions', []):
-                if func.get('is_async'):
+            functions = file_analysis.get('functions', [])
+            if not isinstance(functions, list):
+                continue
+                
+            for func in functions:
+                if isinstance(func, dict) and func.get('is_async'):
                     async_count += 1
             
             # APIキーワードチェック

@@ -8,6 +8,19 @@ from datetime import datetime
 import pytz
 from loguru import logger
 
+try:
+    from ..utils.validation import (
+        is_valid_dict, is_valid_list, is_valid_string,
+        sanitize_mermaid_text, validate_analysis_structure
+    )
+except ImportError:
+    # フォールバック関数
+    def is_valid_dict(obj): return isinstance(obj, dict)
+    def is_valid_list(obj): return isinstance(obj, list)
+    def is_valid_string(obj): return isinstance(obj, str)
+    def sanitize_mermaid_text(text): return str(text)[:50] if text else "Unknown"
+    def validate_analysis_structure(analysis): return True
+
 
 class MermaidGenerator:
     """Mermaid形式の図生成"""
@@ -23,35 +36,66 @@ class MermaidGenerator:
             
             # 各ファイルのクラスを処理
             for file_path, file_analysis in self.analysis.get('files', {}).items():
-                for class_info in file_analysis.get('classes', []):
+                if not isinstance(file_analysis, dict):
+                    continue
+                
+                classes = file_analysis.get('classes', [])
+                if not isinstance(classes, list):
+                    continue
+                
+                for class_info in classes:
+                    if not isinstance(class_info, dict) or 'name' not in class_info:
+                        logger.warning(f"Invalid class_info structure in {file_path}")
+                        continue
+                    
+                    class_name = sanitize_mermaid_text(class_info.get('name', ''))
+                    if not class_name or class_name == 'Unknown':
+                        logger.warning(f"Invalid class name in {file_path}")
+                        continue
+                    
                     # クラス定義
-                    mermaid_code.append(f"    class {class_info['name']} {{")
+                    mermaid_code.append(f"    class {class_name} {{")
                     
                     # 属性
-                    for attr in class_info.get('attributes', []):
-                        mermaid_code.append(f"        +{attr}")
+                    attributes = class_info.get('attributes', [])
+                    if isinstance(attributes, list):
+                        for attr in attributes:
+                            if isinstance(attr, str) and attr.isidentifier():
+                                mermaid_code.append(f"        +{attr}")
                     
                     # メソッド
-                    for method in class_info.get('methods', []):
-                        mermaid_code.append(f"        +{method}()")
+                    methods = class_info.get('methods', [])
+                    if isinstance(methods, list):
+                        for method in methods:
+                            if isinstance(method, str) and method.isidentifier():
+                                mermaid_code.append(f"        +{method}()")
                     
                     mermaid_code.append("    }")
                     
                     # 継承関係
-                    for base in class_info.get('base_classes', []):
-                        if base and base != 'object':
-                            mermaid_code.append(f"    {base} <|-- {class_info['name']}")
+                    base_classes = class_info.get('base_classes', [])
+                    if isinstance(base_classes, list):
+                        for base in base_classes:
+                            if isinstance(base, str) and base.isidentifier() and base != 'object':
+                                mermaid_code.append(f"    {base} <|-- {class_name}")
             
             # ファイルに保存
             timestamp = datetime.now(self.tokyo_tz).strftime("%Y%m%d_%H%M%S")
             filename = f"class_diagram_{timestamp}.mmd"
             file_path = output_dir / filename
             
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(mermaid_code))
+            # 出力ディレクトリの存在確認と作成
+            output_dir.mkdir(parents=True, exist_ok=True)
             
-            logger.info(f"Generated class diagram: {file_path}")
-            return str(file_path)
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write('\n'.join(mermaid_code))
+                
+                logger.info(f"Generated class diagram: {file_path}")
+                return str(file_path)
+            except (PermissionError, OSError) as e:
+                logger.error(f"Failed to write file {file_path}: {e}")
+                return None
             
         except Exception as e:
             logger.error(f"Failed to generate class diagram: {e}")

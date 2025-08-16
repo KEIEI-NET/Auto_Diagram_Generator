@@ -4,19 +4,33 @@ CLI コマンドインターフェース
 
 import click
 import sys
+import os
 from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 from rich.progress import track
 from loguru import logger
 
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from adg.core.analyzer import ProjectAnalyzer
-from adg.core.detector import DiagramDetector
-from adg.generators.mermaid import MermaidGenerator
+# セキュアなインポート方法
+try:
+    from adg.core.analyzer import ProjectAnalyzer
+    from adg.core.detector import DiagramDetector
+    from adg.generators.mermaid import MermaidGenerator
+    from adg.utils.security import validate_path
+except ImportError:
+    # 開発環境用のフォールバック（環境変数で制御）
+    if os.getenv('ADG_DEV_MODE') == '1':
+        parent_dir = Path(__file__).parent.parent.parent
+        if parent_dir.exists() and (parent_dir / 'adg').exists():
+            sys.path.insert(0, str(parent_dir))
+            from adg.core.analyzer import ProjectAnalyzer
+            from adg.core.detector import DiagramDetector
+            from adg.generators.mermaid import MermaidGenerator
+            from adg.utils.security import validate_path
+        else:
+            raise ImportError("ADG modules not found in development mode")
+    else:
+        raise ImportError("ADG modules not found. Please install the package properly.")
 
 console = Console()
 
@@ -37,12 +51,27 @@ def cli():
 def analyze(path, output, format, verbose):
     """プロジェクトを解析して必要な図を判定"""
     
-    console.print(f"[bold blue]🔍 プロジェクトを解析中: {path}[/bold blue]")
-    
-    # プロジェクト解析
-    analyzer = ProjectAnalyzer(path)
-    with console.status("[bold green]コードを解析中..."):
-        analysis_result = analyzer.analyze()
+    try:
+        # パスの検証
+        path_obj = Path(path)
+        if not path_obj.exists():
+            console.print(f"[red]エラー: パス '{path}' が存在しません[/red]")
+            sys.exit(1)
+        
+        console.print(f"[bold blue]🔍 プロジェクトを解析中: {path}[/bold blue]")
+        
+        # プロジェクト解析
+        analyzer = ProjectAnalyzer(path)
+        with console.status("[bold green]コードを解析中..."):
+            analysis_result = analyzer.analyze()
+        
+        if not analysis_result or not analysis_result.get('files'):
+            console.print("[yellow]警告: 解析対象のファイルが見つかりませんでした[/yellow]")
+            return analysis_result
+    except Exception as e:
+        console.print(f"[red]エラー: 解析中に問題が発生しました: {e}[/red]")
+        logger.error(f"Analysis failed: {e}")
+        sys.exit(1)
     
     # 結果サマリーを表示
     summary = analysis_result["summary"]
