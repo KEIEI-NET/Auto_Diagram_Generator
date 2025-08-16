@@ -42,7 +42,7 @@ class FunctionInfo(CodeElement):
 @dataclass
 class ImportInfo(CodeElement):
     """インポート情報"""
-    module: str
+    module: str = ""
     imported_names: List[str] = field(default_factory=list)
     is_from_import: bool = False
 

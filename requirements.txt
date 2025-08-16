@@ -11,7 +11,8 @@ astroid>=3.0.0
 
 # Diagram generation
 graphviz>=0.20.0
-mermaid-cli>=10.0.0
+# mermaid-cli  # npmでインストール: npm install -g @mermaid-js/mermaid-cli
+playwright>=1.40.0
 
 # Utilities
 python-dotenv>=1.0.0

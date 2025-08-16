@@ -740,9 +740,9 @@ def test_mermaid_to_drawio():
     # 結果表示
     for result in results:
         if result.success:
-            print(f"✓ {result.diagram_type} ({result.format}): {result.file_path}")
+            print(f"[OK] {result.diagram_type} ({result.format}): {result.file_path}")
         else:
-            print(f"✗ {result.diagram_type} ({result.format}): {result.error}")
+            print(f"[ERROR] {result.diagram_type} ({result.format}): {result.error}")
     
     return results
 
