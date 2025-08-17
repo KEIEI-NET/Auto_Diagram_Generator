@@ -1,0 +1,16 @@
+# AST Parsers for various languages
+
+# Already installed
+esprima>=4.0.1         # JavaScript/TypeScript AST parser
+javalang>=0.13.0       # Java AST parser
+
+# Additional language parsers
+pycparser>=2.21        # C parser
+tree-sitter>=0.20.1    # Universal parsing library
+py-tree-sitter-languages>=1.10.2  # Pre-built tree-sitter languages
+phply>=1.2.6          # PHP parser (limited support)
+redbaron>=0.9.2       # Python FST (Full Syntax Tree)
+
+# Language-specific alternatives
+pyjsparser>=2.7.1     # Alternative JavaScript parser
+parso>=0.8.3          # Python parser (used by Jedi)

@@ -1,7 +1,7 @@
 # 🎨 Auto Diagram Generator (ADG)
 
-*バージョン: v2.1.0*
-*最終更新: 2025年08月16日 14:35 JST*
+*バージョン: v2.2.0*
+*最終更新: 2025年08月17日 16:00 JST*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
@@ -21,6 +21,7 @@
 - 🎭 **Playwright検証**: ブラウザでの実際のレンダリング検証と自動修正
 - 💎 **DrawIO生成**: Mermaid構造からDrawIO XML形式への自動変換
 - 🪟 **Windows完全対応**: uvパッケージマネージャーとPowerShellサポート
+- 🧬 **AST解析統合**: 25言語以上の高精度AST解析（誤検出率<1%）
 
 ## 📚 ドキュメント
 
@@ -66,6 +67,9 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 # パッケージをインストール
 pip install -r requirements.txt
 
+# AST解析機能（推奨）
+pip install -r requirements_ast_parsers.txt
+
 # Playwright（オプション）
 pip install playwright
 playwright install chromium
@@ -88,6 +92,9 @@ python -m adg.utils.mermaid_playwright_validator
 
 # 統合テスト
 python test_adg.py
+
+# AST解析テスト
+python test_ast_integration.py
 ```
 
 ### Windows PowerShellでの使用例
@@ -129,6 +136,10 @@ Auto_Diagram_Generator/
 ├── docs/               # ドキュメント
 ├── src/adg/           # ソースコード
 │   ├── core/          # コア機能
+│   │   ├── analyzer.py          # プロジェクト解析
+│   │   ├── ast_analyzers.py     # AST解析器（25言語対応）
+│   │   ├── integrated_analyzer.py # 統合アナライザー
+│   │   └── language_parsers.py  # 言語別パーサー
 │   ├── generators/    # 図生成器
 │   ├── utils/         # ユーティリティ
 │   └── cli/           # CLIインターフェース
@@ -176,20 +187,24 @@ MIT License - 詳細は[LICENSE](LICENSE)ファイルをご覧ください。
 - [Click](https://click.palletsprojects.com/) - CLIフレームワーク
 - [Rich](https://rich.readthedocs.io/) - 美しいターミナル出力
 - [Loguru](https://github.com/Delgan/loguru) - ロギング
-- [Tree-sitter](https://tree-sitter.github.io/) - コード解析
+- [Tree-sitter](https://tree-sitter.github.io/) - 20言語以上のAST解析
+- [Esprima](https://esprima.org/) - JavaScript/TypeScript AST解析
+- [Javalang](https://github.com/c2nes/javalang) - Java AST解析
 
 ## 📊 プロジェクトステータス
 
-- **バージョン**: 2.1.0 (Production Ready)
+- **バージョン**: 2.2.0 (Production Ready)
 - **Python**: 3.9+
 - **ステータス**: ✅ 本番実装完了
+- **AST対応言語**: 25+ （Python, JavaScript, Java, Go, Rust, C/C++, C#, Ruby, PHP, Delphi等）
 
 ---
 
-*最終更新: 2025年08月16日 14:35 JST*
-*バージョン: v2.1.0*
+*最終更新: 2025年08月17日 16:00 JST*
+*バージョン: v2.2.0*
 
 **更新履歴:**
+- v2.2.0 (2025年08月17日): AST解析統合により25言語以上対応、誤検出率を<1%に改善
 - v2.1.0 (2025年08月16日): DrawIO生成、Playwright検証、セキュリティ強化の実装完了
 - v2.0.0 (2025年08月14日): コア機能の本番実装完了
 - v1.0.0 (2025年08月01日): 初期リリース

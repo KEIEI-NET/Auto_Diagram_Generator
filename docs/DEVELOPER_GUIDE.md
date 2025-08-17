@@ -1,5 +1,8 @@
 # 👩‍💻 開発者ガイド
 
+*バージョン: v2.2.0*
+*最終更新: 2025年08月17日 16:00 JST*
+
 ## 概要
 
 このガイドは、Auto Diagram Generator (ADG)の開発に参加する方向けの包括的なドキュメントです。
@@ -26,6 +29,9 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 # 開発用インストール
 pip install -e ".[dev]"
 
+# ASTパーサーのインストール（必須）
+pip install -r requirements_ast_parsers.txt
+
 # pre-commitフックの設定（今後実装）
 pre-commit install
 ```
@@ -37,6 +43,9 @@ Auto_Diagram_Generator/
 ├── src/adg/               # ソースコード
 │   ├── core/             # コア機能
 │   │   ├── analyzer.py   # コード解析エンジン
+│   │   ├── ast_analyzers.py # AST解析器（25言語）
+│   │   ├── integrated_analyzer.py # 統合アナライザー
+│   │   ├── language_parsers.py # 言語別パーサー
 │   │   ├── detector.py   # 図判定ロジック
 │   │   └── results.py    # 結果型定義
 │   ├── generators/       # 図生成器
@@ -165,17 +174,21 @@ def _detect_new_diagram(self, analysis):
 ### 2. 新しい言語サポート
 
 ```python
-# 1. analyzer.py に新しいAnalyzerクラスを追加
-class JavaScriptAnalyzer(CodeAnalyzer):
+# 1. ast_analyzers.py に新しいASTアナライザーを追加
+class NewLanguageAnalyzer(BaseASTAnalyzer):
     def analyze(self):
-        # JavaScript解析実装
+        # ASTパーサーを使用した解析実装
         pass
 
-# 2. ProjectAnalyzerに登録
-self.analyzers = {
-    '.py': PythonAnalyzer,
-    '.js': JavaScriptAnalyzer,  # 追加
-}
+# 2. get_ast_analyzer_for_file()にマッピングを追加
+def get_ast_analyzer_for_file(file_path: str):
+    ext = Path(file_path).suffix.lower()
+    if ext == '.newlang':
+        return NewLanguageAnalyzer(file_path)
+    # ...
+
+# Tree-sitterを使用する場合は、TreeSitterAnalyzerを拡張
+# 20言語以上がすでにサポートされている
 ```
 
 ## テスト
@@ -406,11 +419,14 @@ Closes #123
 - [API仕様](API_SPECIFICATION.md)
 - [アーキテクチャ](ARCHITECTURE.md)
 - [セキュリティガイド](SECURITY.md)
+- [AST統合完了報告](AST_INTEGRATION_COMPLETE.md)
 
 ### 外部リソース
 
 - [Python AST](https://docs.python.org/3/library/ast.html)
-- [Tree-sitter](https://tree-sitter.github.io/)
+- [Tree-sitter](https://tree-sitter.github.io/) - 20言語以上のAST解析
+- [Esprima](https://esprima.org/) - JavaScript ASTパーサー
+- [Javalang](https://github.com/c2nes/javalang) - Java ASTパーサー
 - [Mermaid](https://mermaid-js.github.io/)
 - [PlantUML](https://plantuml.com/)
 
@@ -428,4 +444,8 @@ Closes #123
 
 ---
 
-最終更新: 2024年1月16日
+*最終更新: 2025年08月17日 16:00 JST*
+*バージョン: v2.2.0*
+
+**更新履歴:**
+- v2.2.0 (2025年08月17日): AST解析統合と新しい言語サポートの説明を追加
