@@ -1,17 +1,20 @@
 # 🎨 Auto Diagram Generator (ADG)
 
-*バージョン: v2.2.0*
-*最終更新: 2025年08月17日 16:00 JST*
+*バージョン: v2.2.1*
+*最終更新: 2025年01月17日 18:45 JST*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
 [![GitHub](https://img.shields.io/badge/GitHub-KEIEI--NET-green)](https://github.com/KEIEI-NET/Auto_Diagram_Generator)
 [![Status](https://img.shields.io/badge/status-production--ready-success)](https://github.com/KEIEI-NET/Auto_Diagram_Generator)
 
-コードを解析して必要な図を自動生成するインテリジェントなツール。Claude Code CLIのカスタムコマンドとして設計されています。
+コードを解析して必要な図を自動生成するインテリジェントなツール。Claude Code CLIのカスタムコマンド（スラッシュコマンド）として設計されています。
 
-## ✨ 特徴
+Intelligent tool for automatically generating diagrams from code analysis. Designed as a custom command (slash command) for Claude Code CLI.
 
+## ✨ 特徴 / Features
+
+### 日本語
 - 🔍 **自動判定**: コード内容から必要な図を自動で判定
 - 📊 **多様な図種対応**: 30種類以上の図に対応
 - 🎯 **マルチフォーマット**: Mermaid、DrawIO形式で出力（PlantUML準備中）
@@ -22,11 +25,28 @@
 - 💎 **DrawIO生成**: Mermaid構造からDrawIO XML形式への自動変換
 - 🪟 **Windows完全対応**: uvパッケージマネージャーとPowerShellサポート
 - 🧬 **AST解析統合**: 25言語以上の高精度AST解析（誤検出率<1%）
+- 🏛️ **Delphi/Pascal対応**: レガシーDelphiコードの完全サポート
 
-## 📚 ドキュメント
+### English
+- 🔍 **Auto Detection**: Automatically determines required diagrams from code
+- 📊 **30+ Diagram Types**: Support for various diagram types
+- 🎯 **Multi-Format**: Output in Mermaid and DrawIO formats (PlantUML coming soon)
+- ⚡ **Incremental Updates**: Efficiently updates only changed files
+- 🌏 **Tokyo Time**: All timestamps in JST (UTC+9)
+- 🔒 **Enhanced Security**: Path traversal protection and input validation
+- 🎭 **Playwright Validation**: Browser rendering validation with auto-fix
+- 💎 **DrawIO Generation**: Automatic conversion from Mermaid to DrawIO XML
+- 🪟 **Full Windows Support**: uv package manager and PowerShell support
+- 🧬 **AST Integration**: High-precision AST analysis for 25+ languages (<1% false positive rate)
+- 🏛️ **Delphi/Pascal Support**: Full support for legacy Delphi code
 
+## 📚 ドキュメント / Documentation
+
+### 日本語
 - 📖 [インストールガイド](docs/INSTALLATION_GUIDE.md)
 - 🚀 [使用例](docs/USAGE_EXAMPLES.md)
+- 💻 [CLIコマンド詳細](docs/CLI_USAGE.md)
+- 📊 [対応フォーマット一覧](docs/SUPPORTED_FORMATS.md)
 - 🏗️ [アーキテクチャ](docs/ARCHITECTURE.md)
 - 📝 [API仕様](docs/API_SPECIFICATION.md)
 - 🔧 [トラブルシューティング](docs/TROUBLESHOOTING.md)
@@ -34,24 +54,43 @@
 - 👩‍💻 [開発者ガイド](docs/DEVELOPER_GUIDE.md)
 - 💻 [Windows PowerShell ガイド](README_Windows.md)
 
-## 🚀 クイックスタート
+### English
+- 📖 [Installation Guide](docs/INSTALLATION_GUIDE.md)
+- 🚀 [Usage Examples](docs/USAGE_EXAMPLES.md)
+- 💻 [CLI Command Details](docs/CLI_USAGE.md)
+- 📊 [Supported Formats](docs/SUPPORTED_FORMATS.md)
+- 🏗️ [Architecture](docs/ARCHITECTURE.md)
+- 📝 [API Specification](docs/API_SPECIFICATION.md)
+- 🔧 [Troubleshooting](docs/TROUBLESHOOTING.md)
+- 🔒 [Security Guide](docs/SECURITY.md)
+- 👩‍💻 [Developer Guide](docs/DEVELOPER_GUIDE.md)
+- 💻 [Windows PowerShell Guide](README_Windows.md)
 
-### インストール（Windows/Mac/Linux対応）
+## 🚀 クイックスタート / Quick Start
 
-#### uvを使用（推奨・高速）
+### インストール（Windows/Mac/Linux対応） / Installation
+
+#### uvを使用（推奨・高速） / Using uv (Recommended, Fast)
 ```bash
-# uvのインストール（初回のみ）
+# uvのインストール（初回のみ） / Install uv (first time only)
 # Windows PowerShell
 irm https://astral.sh/uv/install.ps1 | iex
 # Mac/Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# リポジトリをクローン
+# リポジトリをクローン / Clone repository
 git clone https://github.com/KEIEI-NET/Auto_Diagram_Generator.git
 cd Auto_Diagram_Generator
 
-# 依存関係をインストール
+# 依存関係をインストール / Install dependencies
 uv pip install -e .
+
+# AST解析機能を追加（推奨） / Add AST analysis (recommended)
+uv pip install -r requirements_ast_parsers.txt
+
+# Playwright検証を追加（オプション） / Add Playwright validation (optional)
+uv pip install playwright
+playwright install chromium
 ```
 
 #### 従来のpipを使用
@@ -75,38 +114,55 @@ pip install playwright
 playwright install chromium
 ```
 
-### 基本的な使い方
+### 基本的な使い方 / Basic Usage
 
+#### スラッシュコマンドとして使用 / As Slash Command
 ```bash
-# プロジェクトを解析して図を生成
+# Claude Code CLI内で使用 / Use within Claude Code CLI
+/adg analyze <path> --format mermaid
+/adg generate <path> --types class,flow --output diagrams
+```
+
+#### Pythonモジュールとして使用 / As Python Module
+```bash
+# プロジェクトを解析して図を生成 / Analyze project and generate diagrams
 python -m adg.cli.command analyze <path> --output output
 
-# Mermaid図の生成
+# 特定の図種を生成 / Generate specific diagram types
+python -m adg.cli.command generate <path> --types class,er,sequence --format mermaid
+
+# Delphiプロジェクトを解析 / Analyze Delphi project
+python analyze_delphi_direct.py --input path/to/delphi/file.pas
+
+# Mermaid図の生成 / Generate Mermaid diagrams
 python -m adg.generators.mermaid_refactored
 
-# DrawIO図の生成（Mermaid構造から変換）
+# DrawIO図の生成（Mermaid構造から変換） / Generate DrawIO diagrams
 python -m adg.generators.drawio_from_mermaid
 
-# Playwright検証（自動修正付き）
+# Playwright検証（自動修正付き） / Playwright validation with auto-fix
 python -m adg.utils.mermaid_playwright_validator
 
-# 統合テスト
+# 統合テスト / Integration test
 python test_adg.py
 
-# AST解析テスト
+# AST解析テスト / AST analysis test
 python test_ast_integration.py
 ```
 
-### Windows PowerShellでの使用例
+### Windows PowerShellでの使用例 / Windows PowerShell Examples
 ```powershell
-# 仮想環境をアクティベート
+# 仮想環境をアクティベート / Activate virtual environment
 .\venv\Scripts\Activate.ps1
 
-# プロジェクト解析
+# プロジェクト解析 / Analyze project
 python -m adg analyze src --output diagrams
 
-# DrawIO形式で生成
+# DrawIO形式で生成 / Generate in DrawIO format
 python -m adg analyze src --format drawio
+
+# Delphiファイル解析 / Analyze Delphi file
+python analyze_delphi_direct.py --input "C:\Projects\DelphiApp\Main.pas"
 ```
 
 ## 📊 対応図種
@@ -191,19 +247,31 @@ MIT License - 詳細は[LICENSE](LICENSE)ファイルをご覧ください。
 - [Esprima](https://esprima.org/) - JavaScript/TypeScript AST解析
 - [Javalang](https://github.com/c2nes/javalang) - Java AST解析
 
+## 🌐 対応言語 / Supported Languages
+
+### プログラミング言語（AST解析対応） / Programming Languages (with AST analysis)
+- **主要言語**: Python, JavaScript, TypeScript, Java, C++, C#, Go, Rust
+- **Web言語**: PHP, Ruby, HTML/CSS, JSX/TSX
+- **レガシー言語**: Delphi/Pascal, Visual Basic, COBOL
+- **スクリプト言語**: Shell Script, PowerShell, Perl
+- **その他**: Swift, Kotlin, Scala, R, MATLAB, SQL
+
+詳細は[対応フォーマット一覧](docs/SUPPORTED_FORMATS.md)を参照してください。
+
 ## 📊 プロジェクトステータス
 
-- **バージョン**: 2.2.0 (Production Ready)
+- **バージョン**: 2.2.1 (Production Ready)
 - **Python**: 3.9+
 - **ステータス**: ✅ 本番実装完了
 - **AST対応言語**: 25+ （Python, JavaScript, Java, Go, Rust, C/C++, C#, Ruby, PHP, Delphi等）
 
 ---
 
-*最終更新: 2025年08月17日 16:00 JST*
-*バージョン: v2.2.0*
+*最終更新: 2025年01月17日 18:45 JST*
+*バージョン: v2.2.1*
 
 **更新履歴:**
+- v2.2.1 (2025年01月17日): ドキュメント更新、CLIコマンド詳細追加、Delphi対応強化
 - v2.2.0 (2025年08月17日): AST解析統合により25言語以上対応、誤検出率を<1%に改善
 - v2.1.0 (2025年08月16日): DrawIO生成、Playwright検証、セキュリティ強化の実装完了
 - v2.0.0 (2025年08月14日): コア機能の本番実装完了

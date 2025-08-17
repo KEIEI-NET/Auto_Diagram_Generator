@@ -68,12 +68,29 @@ class CodeAnalyzer:
                 logger.error(f"Path is not a file: {self.file_path}")
                 raise ValueError(f"Path is not a file: {self.file_path}")
             
-            with open(self.file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                if not content.strip():
-                    logger.warning(f"File is empty: {self.file_path}")
-                return content
-        except (UnicodeDecodeError, PermissionError) as e:
+            # UTF-8を試し、失敗したらShift-JISを試す
+            encodings = ['utf-8', 'shift-jis', 'cp932', 'latin-1']
+            content = None
+            last_error = None
+            
+            for encoding in encodings:
+                try:
+                    with open(self.file_path, 'r', encoding=encoding) as f:
+                        content = f.read()
+                        if not content.strip():
+                            logger.warning(f"File is empty: {self.file_path}")
+                        logger.info(f"Successfully read {self.file_path} with {encoding} encoding")
+                        return content
+                except UnicodeDecodeError as e:
+                    last_error = e
+                    continue
+            
+            # すべてのエンコーディングで失敗した場合
+            if last_error:
+                raise last_error
+            else:
+                raise ValueError(f"Could not read file with any encoding: {self.file_path}")
+        except PermissionError as e:
             logger.error(f"Failed to read file {self.file_path}: {e}")
             raise
         except Exception as e:
@@ -213,11 +230,24 @@ class ProjectAnalyzer:
     
     def __init__(self, project_path: str):
         self.project_path = Path(project_path)
+        # DelphiAnalyzerをインポート
+        try:
+            from adg.core.delphi_analyzer_wrapper import DelphiAnalyzer
+        except ImportError:
+            logger.warning("DelphiAnalyzer not available")
+            DelphiAnalyzer = None
+        
         self.analyzers = {
             '.py': PythonAnalyzer,
             # 今後追加: '.js': JavaScriptAnalyzer,
             # 今後追加: '.java': JavaAnalyzer,
         }
+        
+        # DelphiAnalyzerが利用可能なら追加
+        if DelphiAnalyzer:
+            self.analyzers['.pas'] = DelphiAnalyzer
+            self.analyzers['.dpr'] = DelphiAnalyzer
+            self.analyzers['.dfm'] = DelphiAnalyzer
     
     def analyze(self) -> Dict[str, Any]:
         """プロジェクト全体を解析"""
@@ -284,6 +314,16 @@ class ProjectAnalyzer:
             '.pytest_cache', '.mypy_cache', 'dist', 'build'
         }
         
+        # 単一ファイルの場合
+        if self.project_path.is_file():
+            ext = self.project_path.suffix
+            if ext in self.analyzers:
+                return [self.project_path]
+            else:
+                logger.warning(f"No analyzer for file extension: {ext}")
+                return []
+        
+        # ディレクトリの場合
         for ext, analyzer_class in self.analyzers.items():
             for file_path in self.project_path.rglob(f"*{ext}"):
                 # 除外パターンに該当するかチェック

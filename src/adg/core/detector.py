@@ -97,8 +97,15 @@ class DiagramDetector:
             
             # クラス名チェック
             for class_info in file_analysis.get('classes', []):
-                if any(keyword in class_info.name.lower() for keyword in ['model', 'entity', 'table']):
-                    db_score += 3
+                # class_infoが辞書の場合
+                if isinstance(class_info, dict):
+                    class_name = class_info.get('name', '')
+                    if class_name and any(keyword in class_name.lower() for keyword in ['model', 'entity', 'table']):
+                        db_score += 3
+                # class_infoがオブジェクトの場合
+                elif hasattr(class_info, 'name'):
+                    if any(keyword in class_info.name.lower() for keyword in ['model', 'entity', 'table']):
+                        db_score += 3
         
         if db_score == 0:
             return None
@@ -192,8 +199,15 @@ class DiagramDetector:
         
         for file_path, file_analysis in analysis.get('files', {}).items():
             for import_info in file_analysis.get('imports', []):
-                if import_info.get('module'):
-                    unique_modules.add(import_info['module'])
+                # import_infoが辞書の場合
+                if isinstance(import_info, dict):
+                    module = import_info.get('module')
+                    if module:
+                        unique_modules.add(module)
+                # import_infoがオブジェクトの場合
+                elif hasattr(import_info, 'module'):
+                    if import_info.module:
+                        unique_modules.add(import_info.module)
         
         if len(unique_modules) < 5:
             return None

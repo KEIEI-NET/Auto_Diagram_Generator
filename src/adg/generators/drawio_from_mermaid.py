@@ -10,8 +10,6 @@ from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 import pytz
 import json
-import base64
-import zlib
 from loguru import logger
 from dataclasses import dataclass, field
 
@@ -745,6 +743,55 @@ def test_mermaid_to_drawio():
             print(f"[ERROR] {result.diagram_type} ({result.format}): {result.error}")
     
     return results
+
+
+class DrawIOFromMermaid:
+    """Mermaid形式からDrawIO形式への変換クラス（CLIインターフェース用）"""
+    
+    def __init__(self):
+        self.parser = MermaidToDrawIOParser()
+        self.generator = DrawIOGenerator()
+    
+    def convert_file(self, mermaid_file: Path, output_dir: Path) -> Optional[Path]:
+        """Mermaidファイルを読み込んでDrawIO形式に変換"""
+        try:
+            # Mermaidファイルを読み込む
+            with open(mermaid_file, 'r', encoding='utf-8') as f:
+                mermaid_lines = f.readlines()
+            
+            # Mermaidダイアグラムタイプを推定
+            diagram_type = 'generic'
+            if mermaid_lines:
+                first_line = mermaid_lines[0].strip()
+                if 'classDiagram' in first_line:
+                    diagram_type = 'class'
+                elif 'sequenceDiagram' in first_line:
+                    diagram_type = 'sequence'
+                elif 'erDiagram' in first_line:
+                    diagram_type = 'er'
+                elif 'flowchart' in first_line or 'graph' in first_line:
+                    diagram_type = 'flow'
+            
+            # MermaidDiagramオブジェクトを作成
+            mermaid_diagram = MermaidDiagram(
+                type=diagram_type,
+                content=[line.strip() for line in mermaid_lines],
+                metadata={'source_file': str(mermaid_file)}
+            )
+            
+            # DrawIO生成
+            result = self.generator.generate_from_mermaid(mermaid_diagram, output_dir)
+            
+            if result.success:
+                logger.info(f"Converted {mermaid_file} to {result.file_path}")
+                return Path(result.file_path)
+            else:
+                logger.error(f"Failed to convert {mermaid_file}: {result.error}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Failed to convert {mermaid_file}: {e}")
+            return None
 
 
 if __name__ == "__main__":

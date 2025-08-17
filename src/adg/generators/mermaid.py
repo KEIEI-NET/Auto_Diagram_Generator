@@ -33,6 +33,7 @@ class MermaidGenerator:
         """クラス図を生成"""
         try:
             mermaid_code = ["classDiagram"]
+            current_class = None  # 現在処理中のクラス名を追跡
             
             # 各ファイルのクラスを処理
             for file_path, file_analysis in self.analysis.get('files', {}).items():
@@ -44,11 +45,22 @@ class MermaidGenerator:
                     continue
                 
                 for class_info in classes:
-                    if not isinstance(class_info, dict) or 'name' not in class_info:
+                    # ClassInfoオブジェクトの場合
+                    if hasattr(class_info, 'name'):
+                        class_name = sanitize_mermaid_text(class_info.name)
+                        attributes = class_info.attributes if hasattr(class_info, 'attributes') else []
+                        methods = class_info.methods if hasattr(class_info, 'methods') else []
+                        base_classes = class_info.base_classes if hasattr(class_info, 'base_classes') else []
+                    # 辞書の場合
+                    elif isinstance(class_info, dict) and 'name' in class_info:
+                        class_name = sanitize_mermaid_text(class_info.get('name', ''))
+                        attributes = class_info.get('attributes', [])
+                        methods = class_info.get('methods', [])
+                        base_classes = class_info.get('base_classes', [])
+                    else:
                         logger.warning(f"Invalid class_info structure in {file_path}")
                         continue
                     
-                    class_name = sanitize_mermaid_text(class_info.get('name', ''))
                     if not class_name or class_name == 'Unknown':
                         logger.warning(f"Invalid class name in {file_path}")
                         continue
@@ -57,14 +69,12 @@ class MermaidGenerator:
                     mermaid_code.append(f"    class {class_name} {{")
                     
                     # 属性
-                    attributes = class_info.get('attributes', [])
                     if isinstance(attributes, list):
                         for attr in attributes:
                             if isinstance(attr, str) and attr.isidentifier():
                                 mermaid_code.append(f"        +{attr}")
                     
                     # メソッド
-                    methods = class_info.get('methods', [])
                     if isinstance(methods, list):
                         for method in methods:
                             if isinstance(method, str) and method.isidentifier():
@@ -73,7 +83,6 @@ class MermaidGenerator:
                     mermaid_code.append("    }")
                     
                     # 継承関係
-                    base_classes = class_info.get('base_classes', [])
                     if isinstance(base_classes, list):
                         for base in base_classes:
                             if isinstance(base, str) and base.isidentifier() and base != 'object':
@@ -99,6 +108,69 @@ class MermaidGenerator:
             
         except Exception as e:
             logger.error(f"Failed to generate class diagram: {e}")
+            return None
+    
+    def generate_flowchart(self, output_dir: Path) -> Optional[str]:
+        """フロー図を生成"""
+        try:
+            mermaid_code = ["graph TD"]
+            
+            # 関数をフローとして表現
+            for file_info in self.analysis.get("files", {}).values():
+                if not isinstance(file_info, dict):
+                    continue
+                for func in file_info.get("functions", []):
+                    if isinstance(func, dict) and "name" in func:
+                        func_name = sanitize_mermaid_text(func["name"])
+                        mermaid_code.append(f"    {func_name}[{func_name}]")
+            
+            # ファイル名を生成
+            timestamp = datetime.now(self.tokyo_tz).strftime("%Y%m%d_%H%M%S")
+            file_name = f"flowchart_{timestamp}.mmd"
+            file_path = output_dir / file_name
+            
+            # 出力ディレクトリの存在確認と作成
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # ファイルに保存
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write("\n".join(mermaid_code))
+            
+            logger.info(f"Generated flowchart: {file_path}")
+            return str(file_path)
+            
+        except Exception as e:
+            logger.error(f"Failed to generate flowchart: {e}")
+            return None
+    
+    def generate_component_diagram(self, output_dir: Path) -> Optional[str]:
+        """コンポーネント図を生成"""
+        try:
+            mermaid_code = ["graph TB"]
+            
+            # ファイルやモジュールをコンポーネントとして表現
+            for file_path in self.analysis.get("files", {}).keys():
+                component_name = Path(file_path).stem
+                safe_name = sanitize_mermaid_text(component_name)
+                mermaid_code.append(f"    {safe_name}[{safe_name}]")
+            
+            # ファイル名を生成
+            timestamp = datetime.now(self.tokyo_tz).strftime("%Y%m%d_%H%M%S")
+            file_name = f"component_{timestamp}.mmd"
+            file_path = output_dir / file_name
+            
+            # 出力ディレクトリの存在確認と作成
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # ファイルに保存
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write("\n".join(mermaid_code))
+            
+            logger.info(f"Generated component diagram: {file_path}")
+            return str(file_path)
+            
+        except Exception as e:
+            logger.error(f"Failed to generate component diagram: {e}")
             return None
     
     def generate_sequence_diagram(self, output_dir: Path) -> Optional[str]:

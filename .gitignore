@@ -78,7 +78,22 @@ temp/
 *.png
 *.pdf
 diagrams/
+test_diagrams/
+test_*_output*/
+*_diagrams*/
+test_*.py
+test_*.pas
 
 # Config overrides
 config/local.yaml
 config/*.local.yaml
+
+# Temporary and test files
+tmp/
+temp/
+*.bak
+*.orig
+test_results/
+
+# Generated installation files
+*.whl
