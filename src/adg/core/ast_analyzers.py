@@ -1,6 +1,7 @@
 """
 各言語専用のASTパーサーを使用した解析モジュール
 tree-sitter, javalang, esprima等を統合
+セキュリティ強化: タイムアウト保護とリソース制限を実装
 """
 
 import ast
@@ -24,6 +25,19 @@ from adg.core.secure_analyzer import (
     SecureLanguageAnalyzer,
     SerializationMixin,
     SecureFileHandler
+)
+
+# セキュリティ制限のインポート
+from adg.core.security_limits import (
+    SecurityLimits,
+    TimeoutError,
+    ResourceLimitError,
+    DepthLimitError,
+    with_timeout,
+    check_memory_limit,
+    check_file_size,
+    DepthLimitedTraversal,
+    secure_parse_with_timeout
 )
 
 
@@ -120,25 +134,54 @@ class TreeSitterAnalyzer(ASTAnalyzer):
         return self.language or 'unknown'
     
     def parse_ast(self) -> Optional[Any]:
-        """Tree-sitterでASTを解析"""
+        """Tree-sitterでASTを解析（セキュリティ強化版）"""
         if not self.parser or not self.content:
             return None
         
         try:
-            tree = self.parser.parse(bytes(self.content, 'utf8'))
+            # ファイルサイズチェック
+            check_file_size(self.file_path)
+            
+            # タイムアウト保護付きでパース
+            def parser_func(content):
+                return self.parser.parse(bytes(content, 'utf8'))
+            
+            tree = secure_parse_with_timeout(parser_func, self.content)
             return tree
+        except (TimeoutError, ResourceLimitError) as e:
+            logger.error(f"Tree-sitter parsing limited: {e}")
+            return None
         except Exception as e:
             logger.error(f"Tree-sitter parsing failed: {e}")
             return None
     
     def extract_from_ast(self, tree: Any) -> Dict[str, Any]:
-        """Tree-sitter ASTから構造を抽出"""
+        """Tree-sitter ASTから構造を抽出（深度制限付き）"""
         classes = []
         functions = []
         imports = []
         
+        # 深度制限付きtraversal
+        traversal = DepthLimitedTraversal()
+        
         # Tree-sitterのASTを探索
         def traverse(node, depth=0):
+            # 深度とノード数チェック
+            try:
+                traversal.check_depth(depth)
+                traversal.check_node_count()
+            except (DepthLimitError, ResourceLimitError) as e:
+                logger.warning(f"Tree-sitter traversal limited: {e}")
+                return
+            
+            # 定期的なメモリチェック
+            if traversal.node_count % 100 == 0:
+                try:
+                    check_memory_limit()
+                except ResourceLimitError as e:
+                    logger.error(f"Memory limit exceeded during traversal: {e}")
+                    return
+            
             node_type = node.type
             
             # 言語別の処理
@@ -694,10 +737,20 @@ class JavaLangAnalyzer(ASTAnalyzer):
         return 'java'
     
     def parse_ast(self) -> Optional[Any]:
-        """javalangでASTを解析"""
+        """javalangでASTを解析（セキュリティ強化版）"""
         try:
-            tree = javalang.parse.parse(self.content)
+            # ファイルサイズチェック
+            check_file_size(self.file_path)
+            
+            # タイムアウト保護付きでパース
+            def parser_func(content):
+                return javalang.parse.parse(content)
+            
+            tree = secure_parse_with_timeout(parser_func, self.content)
             return tree
+        except (TimeoutError, ResourceLimitError) as e:
+            logger.error(f"javalang parsing limited: {e}")
+            return None
         except Exception as e:
             logger.error(f"javalang parsing failed: {e}")
             return None
@@ -801,25 +854,54 @@ class EsprimaJSAnalyzer(ASTAnalyzer):
         return 'javascript'
     
     def parse_ast(self) -> Optional[Any]:
-        """esprimaでASTを解析"""
+        """esprimaでASTを解析（セキュリティ強化版）"""
         try:
-            tree = esprima.parseModule(self.content, {'loc': True, 'range': True})
+            # ファイルサイズチェック
+            check_file_size(self.file_path)
+            
+            # タイムアウト保護付きでパース
+            def parser_func(content):
+                return esprima.parseModule(content, {'loc': True, 'range': True})
+            
+            tree = secure_parse_with_timeout(parser_func, self.content)
             return tree
+        except (TimeoutError, ResourceLimitError) as e:
+            logger.error(f"esprima parsing limited: {e}")
+            return None
         except Exception as e:
             logger.error(f"esprima parsing failed: {e}")
             return None
     
     def extract_from_ast(self, tree: Any) -> Dict[str, Any]:
-        """esprima ASTから構造を抽出（改良版）"""
+        """esprima ASTから構造を抽出（改良版・深度制限付き）"""
         classes = []
         functions = []
         imports = []
         
         tree_dict = tree.toDict() if hasattr(tree, 'toDict') else tree
         
-        def visit_node(node, parent=None, in_class=None):
+        # 深度制限付きtraversal
+        traversal = DepthLimitedTraversal()
+        
+        def visit_node(node, parent=None, in_class=None, depth=0):
             if not isinstance(node, dict):
                 return
+            
+            # 深度とノード数チェック
+            try:
+                traversal.check_depth(depth)
+                traversal.check_node_count()
+            except (DepthLimitError, ResourceLimitError) as e:
+                logger.warning(f"Esprima traversal limited: {e}")
+                return
+            
+            # 定期的なメモリチェック
+            if traversal.node_count % 100 == 0:
+                try:
+                    check_memory_limit()
+                except ResourceLimitError as e:
+                    logger.error(f"Memory limit exceeded: {e}")
+                    return
             
             node_type = node.get('type')
             
@@ -830,13 +912,13 @@ class EsprimaJSAnalyzer(ASTAnalyzer):
                     # クラス内部を探索（in_classフラグ付き）
                     for key, value in node.items():
                         if key == 'body':
-                            visit_node(value, node, class_info.name)
+                            visit_node(value, node, class_info.name, depth + 1)
                         elif isinstance(value, dict):
-                            visit_node(value, node, class_info.name)
+                            visit_node(value, node, class_info.name, depth + 1)
                         elif isinstance(value, list):
                             for item in value:
                                 if isinstance(item, dict):
-                                    visit_node(item, node, class_info.name)
+                                    visit_node(item, node, class_info.name, depth + 1)
                     return  # クラス内部は既に探索済み
                     
             elif node_type == 'FunctionDeclaration' and not in_class:
@@ -866,13 +948,13 @@ class EsprimaJSAnalyzer(ASTAnalyzer):
             if node_type != 'ClassDeclaration':
                 for key, value in node.items():
                     if isinstance(value, dict):
-                        visit_node(value, node, in_class)
+                        visit_node(value, node, in_class, depth + 1)
                     elif isinstance(value, list):
                         for item in value:
                             if isinstance(item, dict):
-                                visit_node(item, node, in_class)
+                                visit_node(item, node, in_class, depth + 1)
         
-        visit_node(tree_dict)
+        visit_node(tree_dict, depth=0)
         
         return {
             'file_path': str(self.file_path),
@@ -1276,10 +1358,20 @@ class PythonASTAnalyzer(ASTAnalyzer):
         return 'python'
     
     def parse_ast(self) -> Optional[Any]:
-        """Python標準astでASTを解析"""
+        """Python標準astでASTを解析（セキュリティ強化版）"""
         try:
-            tree = ast.parse(self.content)
+            # ファイルサイズチェック
+            check_file_size(self.file_path)
+            
+            # タイムアウト保護付きでパース
+            def parser_func(content):
+                return ast.parse(content)
+            
+            tree = secure_parse_with_timeout(parser_func, self.content)
             return tree
+        except (TimeoutError, ResourceLimitError) as e:
+            logger.error(f"Python AST parsing limited: {e}")
+            return None
         except SyntaxError as e:
             logger.error(f"Python AST parsing failed: {e}")
             return None

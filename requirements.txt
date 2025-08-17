@@ -22,6 +22,7 @@ javalang>=0.13.0  # Java AST parser
 python-dotenv>=1.0.0
 loguru>=0.7.0
 diskcache>=5.6.0
+psutil>=5.9.0  # For memory monitoring in security limits
 
 # Development dependencies
 pytest>=7.4.0
