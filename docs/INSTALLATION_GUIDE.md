@@ -311,7 +311,7 @@ pip install playwright
 playwright install chromium --with-deps
 
 # Node.js（Playwright用）
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt install nodejs
 ```
 

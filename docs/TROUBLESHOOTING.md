@@ -327,7 +327,7 @@ Error: Cannot find module '@mermaid-js/mermaid-cli'
 ```bash
 # 1. Node.jsをインストール
 # Ubuntu/Debian
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt-get install nodejs
 
 # macOS
